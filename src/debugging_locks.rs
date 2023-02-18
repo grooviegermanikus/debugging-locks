@@ -10,7 +10,6 @@ use serde::ser::Error;
 use crate::stacktrace_util::{backtrack_frame, BacktrackError, Frame};
 
 // newtype pattern
-// why is a Box required when adding stack_created? >> only the last field of a struct may have a dynamically sized
 pub struct RwLockWrapped<T: ?Sized> {
     stack_created: Option<Vec<Frame>>,
     // RwLock must be last element in struct
@@ -63,24 +62,14 @@ impl<T> RwLockWrapped<T> {
     }
 
     pub fn write(&self) -> LockResult<RwLockWriteGuard<'_, T>> {
-        // info!("enter WRITE");
-
         write_smart(&self)
     }
 
     pub fn try_read(&self) -> TryLockResult<RwLockReadGuard<'_, T>> {
-        // info!("enter TRYWRITE");
-
         self.inner.try_read()
     }
 
     pub fn read(&self) -> LockResult<RwLockReadGuard<'_, T>> {
-        // info!("enter READ");
-
-        // let result = self.0.read();
-
-        // FIXME remove
-        // thread::sleep(Duration::from_millis(500));
         self.inner.read()
     }
 }
