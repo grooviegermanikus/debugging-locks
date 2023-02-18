@@ -3,11 +3,12 @@ use std::collections::HashMap;
 use std::ops::Deref;
 use std::sync::{Arc, LockResult, RwLock, RwLockReadGuard, RwLockWriteGuard, TryLockError, TryLockResult};
 use std::thread;
+use std::thread::{Thread, ThreadId};
 use std::time::{Duration, Instant};
 use log::{info, warn};
 use serde::{Serialize, Serializer};
 use serde::ser::Error;
-use crate::stacktrace_util::{backtrack_frame, BacktrackError, Frame};
+use crate::stacktrace_util::{backtrack_frame, BacktrackError, Frame, ThreadInfo};
 
 // newtype pattern
 pub struct RwLockWrapped<T: ?Sized> {
@@ -111,12 +112,15 @@ fn write_smart<T>(rwlock_wrapped: &RwLockWrapped<T>) -> LockResult<RwLockWriteGu
                     TryLockError::WouldBlock => {
                         let waittime_elapsed = wait_since.elapsed();
                         let stack_caller = backtrack_frame(|symbol_name| symbol_name.starts_with("rust_basics::debugging_locks::"));
+                        let thread = thread::current();
+                        let thread_info = ThreadInfo { thread_id: thread.id(), name: thread.name().unwrap().to_string() };
 
                         // dispatch to custom handle
                         // note: implementation must deal with debounce, etc.
-                        handle_block_event(wait_since, waittime_elapsed,
-                                           stacktrace_created.clone(),
-                                           &stack_caller.ok());
+                        handle_blocked_writer_event(wait_since, waittime_elapsed,
+                                                    thread_info,
+                                                    stacktrace_created.clone(),
+                                                    &stack_caller.ok());
 
                         sleep_backoff(cnt);
                         cnt += 1;
@@ -129,12 +133,13 @@ fn write_smart<T>(rwlock_wrapped: &RwLockWrapped<T>) -> LockResult<RwLockWriteGu
 
 // custom handling
 // TODO discuss "&Option" vs "Option"
-fn handle_block_event(since: Instant, elapsed: Duration,
-                      stacktrace_created: &Option<Vec<Frame>>, stacktrace_caller: &Option<Vec<Frame>>) {
+fn handle_blocked_writer_event(since: Instant, elapsed: Duration,
+                               thread: ThreadInfo,
+                               stacktrace_created: &Option<Vec<Frame>>, stacktrace_caller: &Option<Vec<Frame>>) {
     if elapsed.as_millis() < 20 {
         return;
     }
-    info!("BLOCKING THREAD for {:?}", elapsed);
+    info!("WRITER WAS BLOCKED on thread {} for {:?}", thread, elapsed);
     match stacktrace_caller {
         None => {}
         Some(frames) => {

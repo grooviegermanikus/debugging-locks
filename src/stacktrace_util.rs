@@ -1,6 +1,8 @@
+use std::fmt;
 use std::fmt::Display;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+use std::thread::ThreadId;
 use log::info;
 
 pub struct Frame {
@@ -9,14 +11,26 @@ pub struct Frame {
     pub line_no: u32,
 }
 
+pub struct ThreadInfo {
+    pub thread_id: ThreadId,
+    pub name: String,
+}
+
 #[derive(Debug)]
 pub enum BacktrackError {
     NoStartFrame,
     NoDebugSymbols,
 }
 
+impl Display for ThreadInfo {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        // TODO fix format "main:ThreadId(1)" -> how to deal with numeric thread id?
+        write!(f, "{}:{:?}", self.name, self.thread_id)
+    }
+}
+
 impl Display for BacktrackError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             BacktrackError::NoStartFrame =>
                 write!(f, "Start Frame not found!"),

@@ -1,3 +1,7 @@
+This utility provides a thin wrapper around <code>RwLock</code> (and <code>Mutex</code> in the future) for debugging lock stalls.
+
+The wrapper keeps track of the callers' and creators' stackframes to provide debugging context.
+
 
 ### Usage
 * see _debugging_locks_run.rs_ for reference
@@ -10,7 +14,7 @@
 
 
 ### Sample output
-	[2023-02-18T11:39:32Z INFO  rust_basics::debugging_locks] BLOCKING THREAD for 1.490548125s
+	[2023-02-18T11:39:32Z INFO  rust_basics::debugging_locks] WRITER WAS BLOCKED on thread main:ThreadId(1) for 1.490548125s
 	[2023-02-18T11:39:32Z INFO  rust_basics::debugging_locks] Accessed here:
 	[2023-02-18T11:39:32Z INFO  rust_basics::debugging_locks] 	>debugging_locks_run.rs:rust_basics::debugging_locks_run::runit::hbcf42217d721148f:26
 	[2023-02-18T11:39:32Z INFO  rust_basics::debugging_locks] 	>main.rs:rust_basics::main::h7b144dc665faa5e5:45
