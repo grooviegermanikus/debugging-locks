@@ -8,5 +8,6 @@ fn main() {
     env_logger::Builder::from_env(Env::default().default_filter_or("debug")).init();
 
     debugging_locks_run::runit();
+
 }
 

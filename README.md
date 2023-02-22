@@ -11,6 +11,7 @@ The wrapper keeps track of the callers' and creators' stackframes to provide deb
 ### What's missing?
 * intercept _.read_ (currently only _.write_) gets tracked
 * define interface for callbacks
+* remove hex from method name "debugging_locks_run.rs:rust_basics::debugging_locks_run::runit::hbcf42217d721148f"
 
 
 ### Sample output
