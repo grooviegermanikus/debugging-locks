@@ -7,6 +7,12 @@ The wrapper keeps track of the callers' and creators' stackframes to provide deb
 * see _debugging_locks_run.rs_ for reference
 * !!! You need to include debug symbols to see the stacktraces !!!
 
+#### enable logger
+
+``rust
+ env_logger::Builder::from_env(Env::default().default_filter_or("debug")).init();
+```
+
 
 ### What's missing?
 * intercept _.read_ (currently only _.write_) gets tracked
