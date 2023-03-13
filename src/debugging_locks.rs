@@ -177,11 +177,8 @@ fn handle_blocked_writer_event(_since: Instant, elapsed: Duration,
                                cnt: u64,
                                thread: ThreadInfo,
                                stacktrace_created: &Option<Vec<Frame>>, stacktrace_caller: &Option<Vec<Frame>>) {
-    if elapsed.as_millis() < 20 {
-        return;
-    }
-    if cnt % 100 == 0 {
-        return;
+    if !(20..25).contains(&cnt) && !(200..).contains(&cnt) {
+        return
     }
     info!("WRITER WAS BLOCKED on thread {} for {:?}", thread, elapsed);
     match stacktrace_caller {
@@ -208,11 +205,8 @@ fn handle_blocked_reader_event(_since: Instant, elapsed: Duration,
                                cnt: u64,
                                thread: ThreadInfo,
                                stacktrace_created: &Option<Vec<Frame>>, stacktrace_caller: &Option<Vec<Frame>>) {
-    if elapsed.as_millis() < 20 {
-        return;
-    }
-    if cnt % 100 == 0 {
-        return;
+    if !(20..25).contains(&cnt) && !(200..).contains(&cnt) {
+        return
     }
     info!("READER WAS BLOCKED on thread {} for {:?}", thread, elapsed);
     match stacktrace_caller {
