@@ -21,20 +21,21 @@ fn runit() {
     thread::spawn(move || {
         let r1 = l1.read().unwrap();
         println!("acquire read lock {} ...", r1.len());
-        thread::sleep(Duration::from_millis(2000));
-        println!("... release read lock");
+        thread::sleep(Duration::from_millis(100));
+        println!("... release read lock.");
     });
+    // wait unit r1 lock is aquired
+    thread::sleep(Duration::from_millis(50));
 
-    thread::sleep(Duration::from_millis(500));
 
-    {
+    println!("acquiring writer lock ...");
+    let mut _w = lock.write().unwrap();
+    println!("... writer lock acquired.");
 
-        // let mut w = lock.write().unwrap();
-        let mut _w = lock.write().unwrap();
-        // exclusive lock -> wait
-
-    }
-
+    let l2 = lock.clone();
+    println!("acquiring read2 lock ...");
+    let _r2 = l2.read().unwrap();
+    thread::sleep(Duration::from_millis(100));
 
 }
 

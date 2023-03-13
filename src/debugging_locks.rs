@@ -70,7 +70,7 @@ impl<T> RwLockWrapped<T> {
     }
 
     pub fn read(&self) -> LockResult<RwLockReadGuard<'_, T>> {
-        self.inner.read()
+        read_smart(&self)
     }
 }
 
@@ -112,11 +112,52 @@ fn write_smart<T>(rwlock_wrapped: &RwLockWrapped<T>) -> LockResult<RwLockWriteGu
                         let waittime_elapsed = wait_since.elapsed();
                         let stack_caller = backtrack_frame(|symbol_name| symbol_name.starts_with(OMIT_FRAME_NAME));
                         let thread = thread::current();
-                        let thread_info = ThreadInfo { thread_id: thread.id(), name: thread.name().unwrap().to_string() };
+                        let thread_info = ThreadInfo { thread_id: thread.id(), name: thread.name().unwrap_or("no_thread").to_string() };
 
                         // dispatch to custom handle
                         // note: implementation must deal with debounce, etc.
-                        handle_blocked_writer_event(wait_since, waittime_elapsed,
+                        handle_blocked_writer_event(wait_since, waittime_elapsed, cnt,
+                                                    thread_info,
+                                                    stacktrace_created.clone(),
+                                                    &stack_caller.ok());
+
+                        sleep_backoff(cnt);
+                        cnt += 1;
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+fn read_smart<T>(rwlock_wrapped: &RwLockWrapped<T>) -> LockResult<RwLockReadGuard<'_, T>> {
+    // info!("ENTER READLOCK");
+    let rwlock = &rwlock_wrapped.inner;
+    let stacktrace_created = &rwlock_wrapped.stack_created;
+
+    let mut cnt: u64 = 0;
+    // consider using SystemTime here
+    let wait_since = Instant::now();
+    loop {
+        match rwlock.try_read() {
+            Ok(guard) => {
+                return Ok(guard);
+            }
+            Err(err) => {
+                match err {
+                    TryLockError::Poisoned(poison) => {
+                        return Err(poison);
+                    }
+                    TryLockError::WouldBlock => {
+                        let waittime_elapsed = wait_since.elapsed();
+                        let stack_caller = backtrack_frame(|symbol_name| symbol_name.starts_with(OMIT_FRAME_NAME));
+                        let thread = thread::current();
+                        let thread_info = ThreadInfo { thread_id: thread.id(), name: thread.name().unwrap_or("no_thread").to_string() };
+
+                        // dispatch to custom handle
+                        // note: implementation must deal with debounce, etc.
+                        handle_blocked_reader_event(wait_since, waittime_elapsed, cnt,
                                                     thread_info,
                                                     stacktrace_created.clone(),
                                                     &stack_caller.ok());
@@ -133,9 +174,13 @@ fn write_smart<T>(rwlock_wrapped: &RwLockWrapped<T>) -> LockResult<RwLockWriteGu
 // custom handling
 // TODO discuss "&Option" vs "Option"
 fn handle_blocked_writer_event(_since: Instant, elapsed: Duration,
+                               cnt: u64,
                                thread: ThreadInfo,
                                stacktrace_created: &Option<Vec<Frame>>, stacktrace_caller: &Option<Vec<Frame>>) {
     if elapsed.as_millis() < 20 {
+        return;
+    }
+    if cnt % 100 == 0 {
         return;
     }
     info!("WRITER WAS BLOCKED on thread {} for {:?}", thread, elapsed);
@@ -158,6 +203,38 @@ fn handle_blocked_writer_event(_since: Instant, elapsed: Duration,
         }
     }
 }
+
+fn handle_blocked_reader_event(_since: Instant, elapsed: Duration,
+                               cnt: u64,
+                               thread: ThreadInfo,
+                               stacktrace_created: &Option<Vec<Frame>>, stacktrace_caller: &Option<Vec<Frame>>) {
+    if elapsed.as_millis() < 20 {
+        return;
+    }
+    if cnt % 100 == 0 {
+        return;
+    }
+    info!("READER WAS BLOCKED on thread {} for {:?}", thread, elapsed);
+    match stacktrace_caller {
+        None => {}
+        Some(frames) => {
+            info!("Accessed here:");
+            for frame in frames {
+                info!("\t>{}:{}:{}", frame.filename, frame.method, frame.line_no);
+            }
+        }
+    }
+    match stacktrace_created {
+        None => {}
+        Some(frames) => {
+            info!("Lock defined here:");
+            for frame in frames {
+                info!("\t>{}:{}:{}", frame.filename, frame.method, frame.line_no);
+            }
+        }
+    }
+}
+
 
 const SAMPLING_RATE_STAGE1: Duration = Duration::from_micros(100);
 const SAMPLING_RATE_STAGE2: Duration = Duration::from_millis(10);
