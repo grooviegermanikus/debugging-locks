@@ -1,14 +1,13 @@
 use core::fmt;
-use std::collections::HashMap;
-use std::ops::Deref;
-use std::sync::{Arc, LockResult, RwLock, RwLockReadGuard, RwLockWriteGuard, TryLockError, TryLockResult};
+use std::sync::{LockResult, RwLock, RwLockReadGuard, RwLockWriteGuard, TryLockError, TryLockResult};
 use std::thread;
-use std::thread::{Thread, ThreadId};
 use std::time::{Duration, Instant};
 use log::{info, warn};
 use serde::{Serialize, Serializer};
 use serde::ser::Error;
-use crate::stacktrace_util::{backtrack_frame, BacktrackError, Frame, ThreadInfo};
+use crate::stacktrace_util::{backtrack_frame, Frame, ThreadInfo};
+
+const OMIT_FRAME_NAME: &str = "rust_debugging_locks::debugging_locks::";
 
 // newtype pattern
 pub struct RwLockWrapped<T: ?Sized> {
@@ -47,7 +46,7 @@ impl<T: ?Sized + fmt::Debug> fmt::Debug for RwLockWrapped<T> {
 impl<T> RwLockWrapped<T> {
     pub fn new(t: T) -> RwLockWrapped<T> {
         info!("SETUP RWLOCK WRAPPER(i)");
-        return match backtrack_frame(|symbol_name| symbol_name.starts_with("rust_basics::debugging_locks::")) {
+        return match backtrack_frame(|symbol_name| symbol_name.starts_with(OMIT_FRAME_NAME)) {
             Ok(frames) => {
                 RwLockWrapped { inner: RwLock::new(t), stack_created: Option::from(frames) }
             }
@@ -111,7 +110,7 @@ fn write_smart<T>(rwlock_wrapped: &RwLockWrapped<T>) -> LockResult<RwLockWriteGu
                     }
                     TryLockError::WouldBlock => {
                         let waittime_elapsed = wait_since.elapsed();
-                        let stack_caller = backtrack_frame(|symbol_name| symbol_name.starts_with("rust_basics::debugging_locks::"));
+                        let stack_caller = backtrack_frame(|symbol_name| symbol_name.starts_with(OMIT_FRAME_NAME));
                         let thread = thread::current();
                         let thread_info = ThreadInfo { thread_id: thread.id(), name: thread.name().unwrap().to_string() };
 
@@ -133,7 +132,7 @@ fn write_smart<T>(rwlock_wrapped: &RwLockWrapped<T>) -> LockResult<RwLockWriteGu
 
 // custom handling
 // TODO discuss "&Option" vs "Option"
-fn handle_blocked_writer_event(since: Instant, elapsed: Duration,
+fn handle_blocked_writer_event(_since: Instant, elapsed: Duration,
                                thread: ThreadInfo,
                                stacktrace_created: &Option<Vec<Frame>>, stacktrace_caller: &Option<Vec<Frame>>) {
     if elapsed.as_millis() < 20 {
