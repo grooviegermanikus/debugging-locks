@@ -15,7 +15,7 @@ fn main() {
 
 
 fn reader_blocks_writer() {
-    let lock : Arc<RwLockWrapped<HashMap<i32,i32>>> = Arc::new(RwLockWrapped::new(HashMap::new()));
+    let lock : Arc<RwLockWrapped<HashMap<i32,i32>>> = deep_init();
 
     let l1 = lock.clone();
     thread::spawn(move || {
@@ -31,6 +31,14 @@ fn reader_blocks_writer() {
     let mut _writer_lock = lock.write().unwrap();
     println!("... writer lock acquired");
 
+}
+
+fn deep_init() -> Arc<RwLockWrapped<HashMap<i32, i32>>> {
+    deep2_init()
+}
+
+fn deep2_init() -> Arc<RwLockWrapped<HashMap<i32, i32>>> {
+    Arc::new(RwLockWrapped::new(HashMap::new()))
 }
 
 
