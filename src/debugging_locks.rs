@@ -62,7 +62,7 @@ impl<T> RwLockWrapped<T> {
     }
 
     pub fn write(&self) -> LockResult<RwLockWriteGuard<'_, T>> {
-        write_smart(&self)
+        write_smart(&self, |wr: &RwLockWrapped<T>| wr.inner.try_write())
     }
 
     pub fn try_read(&self) -> TryLockResult<RwLockReadGuard<'_, T>> {
@@ -90,7 +90,7 @@ impl<T: Default> Default for RwLockWrapped<T> {
 // }
 
 
-fn write_smart<T>(rwlock_wrapped: &RwLockWrapped<T>) -> LockResult<RwLockWriteGuard<'_, T>> {
+fn write_smart<T>(rwlock_wrapped: &RwLockWrapped<T>, aquire_lock: fn(&RwLockWrapped<T>) -> TryLockResult<RwLockWriteGuard<'_, T>>) -> LockResult<RwLockWriteGuard<'_, T>> {
     // info!("ENTER WRITELOCK");
     let rwlock = &rwlock_wrapped.inner;
     let stacktrace_created = &rwlock_wrapped.stack_created;
@@ -99,7 +99,7 @@ fn write_smart<T>(rwlock_wrapped: &RwLockWrapped<T>) -> LockResult<RwLockWriteGu
     // consider using SystemTime here
     let wait_since = Instant::now();
     loop {
-        match rwlock.try_write() {
+        match aquire_lock(rwlock_wrapped) {
             Ok(guard) => {
                 return Ok(guard);
             }
