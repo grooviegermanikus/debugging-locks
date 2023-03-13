@@ -8,35 +8,48 @@ use rust_debugging_locks::debugging_locks::RwLockWrapped;
 fn main() {
     env_logger::Builder::from_env(Env::default().default_filter_or("debug")).init();
 
-    runit();
+    reader_blocks_writer();
+    writer_blocks_reader();
+
 }
 
 
-fn runit() {
-
-
+fn reader_blocks_writer() {
     let lock : Arc<RwLockWrapped<HashMap<i32,i32>>> = Arc::new(RwLockWrapped::new(HashMap::new()));
 
     let l1 = lock.clone();
     thread::spawn(move || {
         let r1 = l1.read().unwrap();
         println!("acquire read lock {} ...", r1.len());
-        thread::sleep(Duration::from_millis(100));
+        thread::sleep(Duration::from_millis(500));
         println!("... release read lock.");
     });
-    // wait unit r1 lock is aquired
+    // wait unit r1 lock is acquired
     thread::sleep(Duration::from_millis(50));
 
-
     println!("acquiring writer lock ...");
-    let mut _w = lock.write().unwrap();
-    println!("... writer lock acquired.");
-
-    let l2 = lock.clone();
-    println!("acquiring read2 lock ...");
-    let _r2 = l2.read().unwrap();
-    thread::sleep(Duration::from_millis(100));
+    let mut _writer_lock = lock.write().unwrap();
+    println!("... writer lock acquired");
 
 }
 
+
+fn writer_blocks_reader() {
+    let lock : Arc<RwLockWrapped<HashMap<i32,i32>>> = Arc::new(RwLockWrapped::new(HashMap::new()));
+
+    let l1 = lock.clone();
+    thread::spawn(move || {
+        let w1 = l1.write().unwrap();
+        println!("acquire write lock {} ...", w1.len());
+        thread::sleep(Duration::from_millis(2500));
+        println!("... release write lock.");
+    });
+    // wait unit w1 lock is acquired
+    thread::sleep(Duration::from_millis(50));
+
+    println!("acquiring read2 lock ...");
+    let _reader_lock = lock.read().unwrap();
+    println!("... release read2 lock.");
+
+}
 
