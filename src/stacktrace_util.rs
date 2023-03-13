@@ -1,9 +1,7 @@
 use std::fmt;
 use std::fmt::Display;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::thread::ThreadId;
-use log::info;
 
 pub struct Frame {
     pub method: String,
