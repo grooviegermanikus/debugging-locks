@@ -21,6 +21,6 @@ pub fn sleep_backoff(cnt: u64) {
 }
 
 
-pub fn inspect_lock(cnt: u64) -> bool {
+pub fn should_inspect_lock(cnt: u64) -> bool {
     (20..25).contains(&cnt) || (500..).contains(&cnt)
 }

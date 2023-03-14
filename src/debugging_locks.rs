@@ -111,16 +111,18 @@ fn write_smart<T>(rwlock_wrapped: &RwLockWrapped<T>) -> LockResult<RwLockWriteGu
                     }
                     TryLockError::WouldBlock => {
                         let waittime_elapsed = wait_since.elapsed();
-                        let stack_caller = backtrack_frame(|symbol_name| symbol_name.starts_with(OMIT_FRAME_NAME));
-                        let thread = thread::current();
-                        let thread_info = ThreadInfo { thread_id: thread.id(), name: thread.name().unwrap_or("no_thread").to_string() };
+                        if thresholds_config::should_inspect_lock(cnt) {
+                            let stack_caller = backtrack_frame(|symbol_name| symbol_name.starts_with(OMIT_FRAME_NAME));
+                            let thread = thread::current();
+                            let thread_info = ThreadInfo { thread_id: thread.id(), name: thread.name().unwrap_or("no_thread").to_string() };
 
-                        // dispatch to custom handle
-                        // note: implementation must deal with debounce, etc.
-                        handle_blocked_writer_event(wait_since, waittime_elapsed, cnt,
-                                                    thread_info,
-                                                    stacktrace_created.clone(),
-                                                    &stack_caller.ok());
+                            // dispatch to custom handle
+                            // note: implementation must deal with debounce, etc.
+                            handle_blocked_writer_event(wait_since, waittime_elapsed, cnt,
+                                                        thread_info,
+                                                        stacktrace_created.clone(),
+                                                        &stack_caller.ok());
+                        }
 
                         thresholds_config::sleep_backoff(cnt);
                         cnt += 1;
@@ -152,16 +154,18 @@ fn read_smart<T>(rwlock_wrapped: &RwLockWrapped<T>) -> LockResult<RwLockReadGuar
                     }
                     TryLockError::WouldBlock => {
                         let waittime_elapsed = wait_since.elapsed();
-                        let stack_caller = backtrack_frame(|symbol_name| symbol_name.starts_with(OMIT_FRAME_NAME));
-                        let thread = thread::current();
-                        let thread_info = ThreadInfo { thread_id: thread.id(), name: thread.name().unwrap_or("no_thread").to_string() };
+                        if thresholds_config::should_inspect_lock(cnt) {
+                            let stack_caller = backtrack_frame(|symbol_name| symbol_name.starts_with(OMIT_FRAME_NAME));
+                            let thread = thread::current();
+                            let thread_info = ThreadInfo { thread_id: thread.id(), name: thread.name().unwrap_or("no_thread").to_string() };
 
-                        // dispatch to custom handle
-                        // note: implementation must deal with debounce, etc.
-                        handle_blocked_reader_event(wait_since, waittime_elapsed, cnt,
-                                                    thread_info,
-                                                    stacktrace_created.clone(),
-                                                    &stack_caller.ok());
+                            // dispatch to custom handle
+                            // note: implementation must deal with debounce, etc.
+                            handle_blocked_reader_event(wait_since, waittime_elapsed, cnt,
+                                                        thread_info,
+                                                        stacktrace_created.clone(),
+                                                        &stack_caller.ok());
+                        }
 
                         thresholds_config::sleep_backoff(cnt);
                         cnt += 1;
@@ -178,9 +182,6 @@ fn handle_blocked_writer_event(_since: Instant, elapsed: Duration,
                                cnt: u64,
                                thread: ThreadInfo,
                                stacktrace_created: &Option<Vec<Frame>>, stacktrace_caller: &Option<Vec<Frame>>) {
-    if !thresholds_config::inspect_lock(cnt) {
-        return
-    }
     info!("WRITER WAS BLOCKED on thread {} for {:?}", thread, elapsed);
     match stacktrace_caller {
         None => {}
@@ -206,9 +207,6 @@ fn handle_blocked_reader_event(_since: Instant, elapsed: Duration,
                                cnt: u64,
                                thread: ThreadInfo,
                                stacktrace_created: &Option<Vec<Frame>>, stacktrace_caller: &Option<Vec<Frame>>) {
-    if !thresholds_config::inspect_lock(cnt) {
-        return
-    }
     info!("READER WAS BLOCKED on thread {} for {:?}", thread, elapsed);
     match stacktrace_caller {
         None => {}
