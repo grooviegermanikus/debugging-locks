@@ -6,6 +6,7 @@ use log::{info, warn};
 use serde::{Serialize, Serializer};
 use serde::ser::Error;
 use crate::stacktrace_util::{backtrack_frame, Frame, ThreadInfo};
+use crate::thresholds_config;
 
 const OMIT_FRAME_NAME: &str = "rust_debugging_locks::debugging_locks::";
 
@@ -121,7 +122,7 @@ fn write_smart<T>(rwlock_wrapped: &RwLockWrapped<T>) -> LockResult<RwLockWriteGu
                                                     stacktrace_created.clone(),
                                                     &stack_caller.ok());
 
-                        sleep_backoff(cnt);
+                        thresholds_config::sleep_backoff(cnt);
                         cnt += 1;
                     }
                 }
@@ -162,7 +163,7 @@ fn read_smart<T>(rwlock_wrapped: &RwLockWrapped<T>) -> LockResult<RwLockReadGuar
                                                     stacktrace_created.clone(),
                                                     &stack_caller.ok());
 
-                        sleep_backoff(cnt);
+                        thresholds_config::sleep_backoff(cnt);
                         cnt += 1;
                     }
                 }
@@ -177,7 +178,7 @@ fn handle_blocked_writer_event(_since: Instant, elapsed: Duration,
                                cnt: u64,
                                thread: ThreadInfo,
                                stacktrace_created: &Option<Vec<Frame>>, stacktrace_caller: &Option<Vec<Frame>>) {
-    if !(20..25).contains(&cnt) && !(500..).contains(&cnt) {
+    if !thresholds_config::inspect_lock(cnt) {
         return
     }
     info!("WRITER WAS BLOCKED on thread {} for {:?}", thread, elapsed);
@@ -205,7 +206,7 @@ fn handle_blocked_reader_event(_since: Instant, elapsed: Duration,
                                cnt: u64,
                                thread: ThreadInfo,
                                stacktrace_created: &Option<Vec<Frame>>, stacktrace_caller: &Option<Vec<Frame>>) {
-    if !(20..25).contains(&cnt) && !(500..).contains(&cnt) {
+    if !thresholds_config::inspect_lock(cnt) {
         return
     }
     info!("READER WAS BLOCKED on thread {} for {:?}", thread, elapsed);
@@ -226,23 +227,6 @@ fn handle_blocked_reader_event(_since: Instant, elapsed: Duration,
                 info!("\t>{}:{}:{}", frame.filename, frame.method, frame.line_no);
             }
         }
-    }
-}
-
-
-const SAMPLING_RATE_STAGE1: Duration = Duration::from_micros(100);
-const SAMPLING_RATE_STAGE2: Duration = Duration::from_millis(10);
-const SAMPLING_RATE_STAGE3: Duration = Duration::from_millis(100);
-
-fn sleep_backoff(cnt: u64) {
-    if cnt < 100 {
-        thread::sleep(SAMPLING_RATE_STAGE1);
-        return;
-    } else if cnt < 500 {
-        thread::sleep(SAMPLING_RATE_STAGE2);
-        return;
-    } else {
-        thread::sleep(SAMPLING_RATE_STAGE3);
     }
 }
 
