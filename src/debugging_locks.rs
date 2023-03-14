@@ -94,7 +94,6 @@ impl<T: Default> Default for RwLockWrapped<T> {
 fn write_smart<T>(rwlock_wrapped: &RwLockWrapped<T>) -> LockResult<RwLockWriteGuard<'_, T>> {
     // info!("ENTER WRITELOCK");
     let rwlock = &rwlock_wrapped.inner;
-    let stacktrace_created = &rwlock_wrapped.stack_created;
 
     let mut cnt: u64 = 0;
     // consider using SystemTime here
@@ -115,6 +114,7 @@ fn write_smart<T>(rwlock_wrapped: &RwLockWrapped<T>) -> LockResult<RwLockWriteGu
                             let stack_caller = backtrack_frame(|symbol_name| symbol_name.starts_with(OMIT_FRAME_NAME));
                             let thread = thread::current();
                             let thread_info = ThreadInfo { thread_id: thread.id(), name: thread.name().unwrap_or("no_thread").to_string() };
+                            let stacktrace_created = &rwlock_wrapped.stack_created;
 
                             // dispatch to custom handle
                             // note: implementation must deal with debounce, etc.
@@ -137,7 +137,6 @@ fn write_smart<T>(rwlock_wrapped: &RwLockWrapped<T>) -> LockResult<RwLockWriteGu
 fn read_smart<T>(rwlock_wrapped: &RwLockWrapped<T>) -> LockResult<RwLockReadGuard<'_, T>> {
     // info!("ENTER READLOCK");
     let rwlock = &rwlock_wrapped.inner;
-    let stacktrace_created = &rwlock_wrapped.stack_created;
 
     let mut cnt: u64 = 0;
     // consider using SystemTime here
@@ -158,6 +157,7 @@ fn read_smart<T>(rwlock_wrapped: &RwLockWrapped<T>) -> LockResult<RwLockReadGuar
                             let stack_caller = backtrack_frame(|symbol_name| symbol_name.starts_with(OMIT_FRAME_NAME));
                             let thread = thread::current();
                             let thread_info = ThreadInfo { thread_id: thread.id(), name: thread.name().unwrap_or("no_thread").to_string() };
+                            let stacktrace_created = &rwlock_wrapped.stack_created;
 
                             // dispatch to custom handle
                             // note: implementation must deal with debounce, etc.
