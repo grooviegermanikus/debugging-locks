@@ -4,10 +4,10 @@ version = "0.2.0"
 edition = "2021"
 
 [dependencies]
-log = "0.4.17"
+log = "0.4.14"
 backtrace = "0.3.67"
-serde = "1.0.152"
-serde_derive = "1.0.152"
+serde = "1.0.136"
+serde_derive = "1.0.136"
 
 [dev-dependencies]
 env_logger = "0.9.0"
