@@ -8,7 +8,10 @@ use serde::ser::Error;
 use crate::stacktrace_util::{backtrack_frame, Frame, ThreadInfo};
 use crate::thresholds_config;
 
-const OMIT_FRAME_NAME: &str = "rust_debugging_locks::debugging_locks::";
+// covers:
+// rust_debugging_locks::debugging_locks::
+// rust_debugging_locks::stacktrace_util::
+const OMIT_FRAME_NAME: &str = "rust_debugging_locks::";
 
 // newtype pattern
 pub struct RwLockWrapped<T: ?Sized> {

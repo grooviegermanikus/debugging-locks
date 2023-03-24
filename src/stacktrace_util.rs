@@ -90,8 +90,7 @@ pub fn backtrack_frame(fn_skip_frame: fn(&str) -> bool) -> Result<Vec<Frame>, Ba
 
             // symbol.name looks like this "rust_basics::debugging_lock_newtype::backtrack::h1cb6032f9b10548c"
             let symbol_name = symbol.name().unwrap().to_string();
-            // module_path is "rust_basics::stacktrace_util"
-            println!("symbol_name: {}, module_path: {}", symbol_name, module_path!());
+            // module_path is "rust_debugging_locks::stacktrace_util"
 
             if !symbol_name.starts_with("backtrace::backtrace::")
                 && !symbol_name.starts_with(module_path!())
