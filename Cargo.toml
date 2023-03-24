@@ -1,6 +1,6 @@
 [package]
 name = "rust-debugging-locks"
-version = "0.5.0"
+version = "0.5.1"
 edition = "2021"
 
 [dependencies]
@@ -11,3 +11,10 @@ serde_derive = "1.0.136"
 
 [dev-dependencies]
 env_logger = "0.9.0"
+criterion = "0.4.0"
+
+[[bench]]
+# criterion
+name = "stacktrace_benchmark"
+harness = false
+
