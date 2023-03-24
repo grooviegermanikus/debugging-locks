@@ -93,7 +93,6 @@ pub fn backtrack_frame(fn_skip_frame: fn(&str) -> bool) -> Result<Vec<Frame>, Ba
             // module_path is "rust_debugging_locks::stacktrace_util"
 
             if !symbol_name.starts_with("backtrace::backtrace::")
-                && !symbol_name.starts_with(module_path!())
                 && !fn_skip_frame(symbol_name.as_str()) {
                 started = true;
                 // do not return to catch the current frame
