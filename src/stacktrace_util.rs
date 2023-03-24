@@ -125,3 +125,25 @@ pub fn backtrack_frame(fn_skip_frame: fn(&str) -> bool) -> Result<Vec<Frame>, Ba
 
 }
 
+fn debug_frames(frames: &Result<Vec<Frame>, BacktrackError>) {
+    for frame in frames.as_ref().unwrap() {
+        println!("\t>{}:{}:{}", frame.filename, frame.method, frame.line_no);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn stacktrace_from_method() {
+        let frames = caller_function();
+        // debug_frames(&frames);
+        assert_eq!("rust_debugging_locks::stacktrace_util::tests::caller_function::h516be83d9fba2304",
+                   frames.unwrap().get(0).unwrap().method);
+    }
+
+    fn caller_function() -> Result<Vec<Frame>, BacktrackError> {
+        backtrack_frame(|symbol_name| !symbol_name.contains("::caller_function"))
+    }
+}
