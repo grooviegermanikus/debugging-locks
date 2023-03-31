@@ -47,9 +47,11 @@ impl<T: ?Sized + fmt::Debug> fmt::Debug for RwLockWrapped<T> {
     }
 }
 
+
 impl<T> RwLockWrapped<T> {
     pub fn new(t: T) -> RwLockWrapped<T> {
-        info!("SETUP RWLOCK WRAPPER(i)");
+        let version = env!("CARGO_PKG_VERSION");
+        info!("SETUP RWLOCK WRAPPER (v{})", version);
         return match backtrack_frame(|symbol_name| symbol_name.starts_with(OMIT_FRAME_NAME)) {
             Ok(frames) => {
                 RwLockWrapped { inner: RwLock::new(t), stack_created: Option::from(frames) }
