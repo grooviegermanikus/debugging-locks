@@ -1,6 +1,8 @@
 use core::fmt;
-use std::sync::{LockResult, RwLock, RwLockReadGuard, RwLockWriteGuard, TryLockError, TryLockResult};
-use std::thread;
+use std::sync::{Arc, LockResult, Mutex, MutexGuard, RwLock, RwLockReadGuard, RwLockWriteGuard, TryLockError, TryLockResult};
+use std::{ptr, thread};
+use std::cell::{Cell, RefCell};
+use std::sync::atomic::AtomicPtr;
 use std::time::{Duration, Instant};
 use log::{info, warn};
 use serde::{Serialize, Serializer};
@@ -16,6 +18,8 @@ const OMIT_FRAME_NAME: &str = "rust_debugging_locks::";
 // newtype pattern
 pub struct RwLockWrapped<T: ?Sized> {
     stack_created: Option<Vec<Frame>>,
+    // note: this does NOT reflect a currently acquired lock
+    last_returned_lock_from: Arc<Mutex<Option<Vec<Frame>>>>,
     // RwLock must be last element in struct
     inner: RwLock<T>,
 }
@@ -54,11 +58,17 @@ impl<T> RwLockWrapped<T> {
         info!("SETUP RWLOCK WRAPPER (v{})", version);
         return match backtrack_frame(|symbol_name| symbol_name.starts_with(OMIT_FRAME_NAME)) {
             Ok(frames) => {
-                RwLockWrapped { inner: RwLock::new(t), stack_created: Option::from(frames) }
+                RwLockWrapped {
+                    inner: RwLock::new(t),
+                    stack_created: Option::from(frames),
+                    last_returned_lock_from: Arc::new(Mutex::new(None)) }
             }
             Err(backtrack_error) => {
                 warn!("Unable to determine stacktrace - continue without! (error: {})", backtrack_error);
-                RwLockWrapped { inner: RwLock::new(t), stack_created: None }
+                RwLockWrapped {
+                    inner: RwLock::new(t),
+                    stack_created: None,
+                    last_returned_lock_from: Arc::new(Mutex::new(None)) }
             }
         }
     }
@@ -97,8 +107,8 @@ impl<T: Default> Default for RwLockWrapped<T> {
 
 
 fn write_smart<T>(rwlock_wrapped: &RwLockWrapped<T>) -> LockResult<RwLockWriteGuard<'_, T>> {
-    // info!("ENTER WRITELOCK");
     let rwlock = &rwlock_wrapped.inner;
+    let mut last_returned = &rwlock_wrapped.last_returned_lock_from;
 
     let mut cnt: u64 = 0;
     // consider using SystemTime here
@@ -106,6 +116,8 @@ fn write_smart<T>(rwlock_wrapped: &RwLockWrapped<T>) -> LockResult<RwLockWriteGu
     loop {
         match rwlock.try_write() {
             Ok(guard) => {
+                let stack_caller = backtrack_frame(|symbol_name| symbol_name.starts_with(OMIT_FRAME_NAME));
+                *last_returned.lock().unwrap() = Some(stack_caller.expect("stacktrace should be available"));
                 return Ok(guard);
             }
             Err(err) => {
@@ -120,12 +132,14 @@ fn write_smart<T>(rwlock_wrapped: &RwLockWrapped<T>) -> LockResult<RwLockWriteGu
                             let thread = thread::current();
                             let thread_info = ThreadInfo { thread_id: thread.id(), name: thread.name().unwrap_or("no_thread").to_string() };
                             let stacktrace_created = &rwlock_wrapped.stack_created;
+                            let last_lock_from = &rwlock_wrapped.last_returned_lock_from;
 
                             // dispatch to custom handle
                             // note: implementation must deal with debounce, etc.
                             handle_blocked_writer_event(wait_since, waittime_elapsed, cnt,
                                                         thread_info,
                                                         stacktrace_created.clone(),
+                                                        last_lock_from.clone(),
                                                         &stack_caller.ok());
                         }
 
@@ -140,8 +154,8 @@ fn write_smart<T>(rwlock_wrapped: &RwLockWrapped<T>) -> LockResult<RwLockWriteGu
 
 
 fn read_smart<T>(rwlock_wrapped: &RwLockWrapped<T>) -> LockResult<RwLockReadGuard<'_, T>> {
-    // info!("ENTER READLOCK");
     let rwlock = &rwlock_wrapped.inner;
+    let mut last_returned = &rwlock_wrapped.last_returned_lock_from;
 
     let mut cnt: u64 = 0;
     // consider using SystemTime here
@@ -149,6 +163,8 @@ fn read_smart<T>(rwlock_wrapped: &RwLockWrapped<T>) -> LockResult<RwLockReadGuar
     loop {
         match rwlock.try_read() {
             Ok(guard) => {
+                let stack_caller = backtrack_frame(|symbol_name| symbol_name.starts_with(OMIT_FRAME_NAME));
+                *last_returned.lock().unwrap() = Some(stack_caller.expect("stacktrace should be available"));
                 return Ok(guard);
             }
             Err(err) => {
@@ -163,12 +179,14 @@ fn read_smart<T>(rwlock_wrapped: &RwLockWrapped<T>) -> LockResult<RwLockReadGuar
                             let thread = thread::current();
                             let thread_info = ThreadInfo { thread_id: thread.id(), name: thread.name().unwrap_or("no_thread").to_string() };
                             let stacktrace_created = &rwlock_wrapped.stack_created;
+                            let last_lock_from = &rwlock_wrapped.last_returned_lock_from;
 
                             // dispatch to custom handle
                             // note: implementation must deal with debounce, etc.
                             handle_blocked_reader_event(wait_since, waittime_elapsed, cnt,
                                                         thread_info,
                                                         stacktrace_created.clone(),
+                                                        last_lock_from.clone(),
                                                         &stack_caller.ok());
                         }
 
@@ -186,21 +204,35 @@ fn read_smart<T>(rwlock_wrapped: &RwLockWrapped<T>) -> LockResult<RwLockReadGuar
 fn handle_blocked_writer_event(_since: Instant, elapsed: Duration,
                                cnt: u64,
                                thread: ThreadInfo,
-                               stacktrace_created: &Option<Vec<Frame>>, stacktrace_caller: &Option<Vec<Frame>>) {
-    info!("WRITER WAS BLOCKED on thread {} for {:?}", thread, elapsed);
+                               stacktrace_created: &Option<Vec<Frame>>,
+                               last_returned_lock_from: Arc<Mutex<Option<Vec<Frame>>>>,
+                               stacktrace_caller: &Option<Vec<Frame>>) {
+    info!("WRITER BLOCKED on thread {} for {:?} - details:", thread, elapsed);
+
     match stacktrace_caller {
         None => {}
         Some(frames) => {
-            info!("Accessed here:");
+            info!("  >blocking call:");
             for frame in frames {
                 info!("\t>{}:{}:{}", frame.filename, frame.method, frame.line_no);
             }
         }
     }
+
+    match last_returned_lock_from.lock().unwrap().as_ref() {
+        None => {}
+        Some(frames) => {
+            info!("  >concurrent lock acquired here:");
+            for frame in frames {
+                info!("\t>{}:{}:{}", frame.filename, frame.method, frame.line_no);
+            }
+        }
+    }
+
     match stacktrace_created {
         None => {}
         Some(frames) => {
-            info!("Lock defined here:");
+            info!("  >RwLock constructed here:");
             for frame in frames {
                 info!("\t>{}:{}:{}", frame.filename, frame.method, frame.line_no);
             }
@@ -211,21 +243,35 @@ fn handle_blocked_writer_event(_since: Instant, elapsed: Duration,
 fn handle_blocked_reader_event(_since: Instant, elapsed: Duration,
                                cnt: u64,
                                thread: ThreadInfo,
-                               stacktrace_created: &Option<Vec<Frame>>, stacktrace_caller: &Option<Vec<Frame>>) {
-    info!("READER WAS BLOCKED on thread {} for {:?}", thread, elapsed);
+                               stacktrace_created: &Option<Vec<Frame>>,
+                               last_returned_lock_from: Arc<Mutex<Option<Vec<Frame>>>>,
+                               stacktrace_caller: &Option<Vec<Frame>>) {
+    info!("READER BLOCKED on thread {} for {:?} - details:", thread, elapsed);
+
     match stacktrace_caller {
         None => {}
         Some(frames) => {
-            info!("Accessed here:");
+            info!("  >blocking here:");
             for frame in frames {
                 info!("\t>{}:{}:{}", frame.filename, frame.method, frame.line_no);
             }
         }
     }
+
+    match last_returned_lock_from.lock().unwrap().as_ref() {
+        None => {}
+        Some(frames) => {
+            info!("  >concurrent lock acquired here:");
+            for frame in frames {
+                info!("\t>{}:{}:{}", frame.filename, frame.method, frame.line_no);
+            }
+        }
+    }
+
     match stacktrace_created {
         None => {}
         Some(frames) => {
-            info!("Lock defined here:");
+            info!("  >RwLock constructed here:");
             for frame in frames {
                 info!("\t>{}:{}:{}", frame.filename, frame.method, frame.line_no);
             }
