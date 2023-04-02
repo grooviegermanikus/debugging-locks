@@ -47,6 +47,7 @@ impl std::error::Error for BacktrackError {}
 /// # Examples
 ///
 /// ```
+/// use rust_debugging_locks::stacktrace_util::backtrack_frame;
 /// let frames = backtrack_frame(|symbol_name| symbol_name.starts_with("rust_basics::debugging_locks::"));
 /// ```
 pub fn backtrack_frame(fn_skip_frame: fn(&str) -> bool) -> Result<Vec<Frame>, BacktrackError> {
@@ -139,8 +140,7 @@ mod tests {
     fn stacktrace_from_method() {
         let frames = caller_function();
         // debug_frames(&frames);
-        assert_eq!("rust_debugging_locks::stacktrace_util::tests::caller_function::h516be83d9fba2304",
-                   frames.unwrap().get(0).unwrap().method);
+        assert!(frames.unwrap().get(0).unwrap().method.starts_with("rust_debugging_locks::stacktrace_util::tests::caller_function::h"));
     }
 
     fn caller_function() -> Result<Vec<Frame>, BacktrackError> {

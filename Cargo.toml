@@ -18,3 +18,8 @@ criterion = "0.4.0"
 name = "stacktrace_benchmark"
 harness = false
 
+[[bench]]
+# criterion
+name = "rwlock_wrapper_benchmark"
+harness = false
+

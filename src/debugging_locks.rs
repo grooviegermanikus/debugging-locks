@@ -4,7 +4,7 @@ use std::{ptr, thread};
 use std::cell::{Cell, RefCell};
 use std::sync::atomic::AtomicPtr;
 use std::time::{Duration, Instant};
-use log::{info, warn};
+use log::{debug, info, warn};
 use serde::{Serialize, Serializer};
 use serde::ser::Error;
 use crate::stacktrace_util::{backtrack_frame, Frame, ThreadInfo};
@@ -207,14 +207,14 @@ fn handle_blocked_writer_event(_since: Instant, elapsed: Duration,
                                stacktrace_created: &Option<Vec<Frame>>,
                                last_returned_lock_from: Arc<Mutex<Option<Vec<Frame>>>>,
                                stacktrace_caller: &Option<Vec<Frame>>) {
-    info!("WRITER BLOCKED on thread {} for {:?} - details:", thread, elapsed);
+    info!("WRITER BLOCKED on thread {} for {:?}", thread, elapsed);
 
     match stacktrace_caller {
         None => {}
         Some(frames) => {
-            info!("  >blocking call:");
+            debug!("  >blocking call:");
             for frame in frames {
-                info!("\t>{}:{}:{}", frame.filename, frame.method, frame.line_no);
+                debug!("\t>{}:{}:{}", frame.filename, frame.method, frame.line_no);
             }
         }
     }
@@ -222,9 +222,9 @@ fn handle_blocked_writer_event(_since: Instant, elapsed: Duration,
     match last_returned_lock_from.lock().unwrap().as_ref() {
         None => {}
         Some(frames) => {
-            info!("  >concurrent lock acquired here:");
+            debug!("  >concurrent lock acquired here:");
             for frame in frames {
-                info!("\t>{}:{}:{}", frame.filename, frame.method, frame.line_no);
+                debug!("\t>{}:{}:{}", frame.filename, frame.method, frame.line_no);
             }
         }
     }
@@ -232,9 +232,9 @@ fn handle_blocked_writer_event(_since: Instant, elapsed: Duration,
     match stacktrace_created {
         None => {}
         Some(frames) => {
-            info!("  >RwLock constructed here:");
+            debug!("  >RwLock constructed here:");
             for frame in frames {
-                info!("\t>{}:{}:{}", frame.filename, frame.method, frame.line_no);
+                debug!("\t>{}:{}:{}", frame.filename, frame.method, frame.line_no);
             }
         }
     }
@@ -246,14 +246,14 @@ fn handle_blocked_reader_event(_since: Instant, elapsed: Duration,
                                stacktrace_created: &Option<Vec<Frame>>,
                                last_returned_lock_from: Arc<Mutex<Option<Vec<Frame>>>>,
                                stacktrace_caller: &Option<Vec<Frame>>) {
-    info!("READER BLOCKED on thread {} for {:?} - details:", thread, elapsed);
+    info!("READER BLOCKED on thread {} for {:?}", thread, elapsed);
 
     match stacktrace_caller {
         None => {}
         Some(frames) => {
-            info!("  >blocking here:");
+            debug!("  >blocking here:");
             for frame in frames {
-                info!("\t>{}:{}:{}", frame.filename, frame.method, frame.line_no);
+                debug!("\t>{}:{}:{}", frame.filename, frame.method, frame.line_no);
             }
         }
     }
@@ -261,9 +261,9 @@ fn handle_blocked_reader_event(_since: Instant, elapsed: Duration,
     match last_returned_lock_from.lock().unwrap().as_ref() {
         None => {}
         Some(frames) => {
-            info!("  >concurrent lock acquired here:");
+            debug!("  >concurrent lock acquired here:");
             for frame in frames {
-                info!("\t>{}:{}:{}", frame.filename, frame.method, frame.line_no);
+                debug!("\t>{}:{}:{}", frame.filename, frame.method, frame.line_no);
             }
         }
     }
@@ -271,9 +271,9 @@ fn handle_blocked_reader_event(_since: Instant, elapsed: Duration,
     match stacktrace_created {
         None => {}
         Some(frames) => {
-            info!("  >RwLock constructed here:");
+            debug!("  >RwLock constructed here:");
             for frame in frames {
-                info!("\t>{}:{}:{}", frame.filename, frame.method, frame.line_no);
+                debug!("\t>{}:{}:{}", frame.filename, frame.method, frame.line_no);
             }
         }
     }
