@@ -107,23 +107,25 @@ pub fn backtrack_frame(fn_skip_frame: fn(&str) -> bool) -> Result<Stracktrace, B
 
             if !symbol_name.starts_with("backtrace::backtrace::")
                 && !fn_skip_frame(symbol_name.as_str()) {
-                assert_eq!(started, false);
-                let addr_instruction_pointer = frame.ip() as u32;
-                hash = addr_instruction_pointer.to_be_bytes().to_base58();
+
+                if !started {
+                    let addr_instruction_pointer = frame.ip() as u32;
+                    hash = addr_instruction_pointer.to_be_bytes().to_base58();
+                }
 
                 started = true;
                 // do not return to catch the current frame
+
             }
 
-            // note: started may just get flagged for the current frame
-            if started {
-                frames.push(Frame {
-                    method: symbol.name().unwrap().to_string(),
-                    filename: symbol.filename().unwrap().file_name().unwrap().to_str().unwrap().to_string(),
-                    line_no: symbol.lineno().unwrap() });
+            if !started {
                 return;
             }
 
+            frames.push(Frame {
+                method: symbol.name().unwrap().to_string(),
+                filename: symbol.filename().unwrap().file_name().unwrap().to_str().unwrap().to_string(),
+                line_no: symbol.lineno().unwrap() });
         });
 
         !stop
@@ -156,7 +158,8 @@ mod tests {
     fn stacktrace_from_method() {
         let stacktrace = caller_function().unwrap();
         // debug_frames(&frames);
-        assert!(stacktrace.frames.get(0).unwrap().method.starts_with("rust_debugging_locks::stacktrace_util::tests::caller_function::h"));
+        assert!(stacktrace.frames.get(0).unwrap().method.starts_with("rust_debugging_locks::stacktrace_util::tests::caller_function::h"),
+                "method name: {}", stacktrace.frames.get(0).unwrap().method);
     }
 
     fn caller_function() -> Result<Stracktrace, BacktrackError> {
