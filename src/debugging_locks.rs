@@ -7,14 +7,8 @@ use std::time::{Duration, Instant};
 use log::{debug, info, warn};
 use serde::{Serialize, Serializer};
 use serde::ser::Error;
-use crate::stacktrace_util::{backtrack_frame, Frame, Stracktrace, ThreadInfo};
+use crate::stacktrace_util::{backtrack_frame, BacktrackError, Frame, Stracktrace, ThreadInfo};
 use crate::thresholds_config;
-
-// covers:
-// rust_debugging_locks::debugging_locks::
-// rust_debugging_locks::stacktrace_util::
-// debugging_locks.rs:<rust_debugging_locks::debugging_locks::RwLockWrapped<T> as core::default::Default>::
-const OMIT_FRAME_SUFFIX: &str = "rust_debugging_locks:";
 
 // newtype pattern
 pub struct RwLockWrapped<T: ?Sized> {
@@ -57,7 +51,7 @@ const LIB_VERSION: &str = env!("CARGO_PKG_VERSION");
 impl<T> RwLockWrapped<T> {
     pub fn new(t: T) -> RwLockWrapped<T> {
         info!("NEW WRAPPED RWLOCK (v{})", LIB_VERSION);
-        return match backtrack_frame(|symbol_name| symbol_name.starts_with(OMIT_FRAME_SUFFIX)) {
+        return match get_current_stracktrace() {
             Ok(stracktrace) => {
                 RwLockWrapped {
                     inner: RwLock::new(t),
@@ -117,7 +111,7 @@ fn write_smart<T>(rwlock_wrapped: &RwLockWrapped<T>) -> LockResult<RwLockWriteGu
     loop {
         match rwlock.try_write() {
             Ok(guard) => {
-                let stack_caller = backtrack_frame(|symbol_name| symbol_name.starts_with(OMIT_FRAME_SUFFIX));
+                let stack_caller = get_current_stracktrace();
                 *last_returned.lock().unwrap() = Some(stack_caller.expect("stacktrace should be available"));
                 return Ok(guard);
             }
@@ -129,7 +123,7 @@ fn write_smart<T>(rwlock_wrapped: &RwLockWrapped<T>) -> LockResult<RwLockWriteGu
                     TryLockError::WouldBlock => {
                         let waittime_elapsed = wait_since.elapsed();
                         if thresholds_config::should_inspect_lock(cnt) {
-                            let stack_caller = backtrack_frame(|symbol_name| symbol_name.starts_with(OMIT_FRAME_SUFFIX));
+                            let stack_caller = get_current_stracktrace();
                             let thread = thread::current();
                             let thread_info = ThreadInfo { thread_id: thread.id(), name: thread.name().unwrap_or("no_thread").to_string() };
                             let stacktrace_created = &rwlock_wrapped.stack_created;
@@ -164,7 +158,7 @@ fn read_smart<T>(rwlock_wrapped: &RwLockWrapped<T>) -> LockResult<RwLockReadGuar
     loop {
         match rwlock.try_read() {
             Ok(guard) => {
-                let stack_caller = backtrack_frame(|symbol_name| symbol_name.starts_with(OMIT_FRAME_SUFFIX));
+                let stack_caller = get_current_stracktrace();
                 *last_returned.lock().unwrap() = Some(stack_caller.expect("stacktrace should be available"));
                 return Ok(guard);
             }
@@ -176,7 +170,7 @@ fn read_smart<T>(rwlock_wrapped: &RwLockWrapped<T>) -> LockResult<RwLockReadGuar
                     TryLockError::WouldBlock => {
                         let waittime_elapsed = wait_since.elapsed();
                         if thresholds_config::should_inspect_lock(cnt) {
-                            let stack_caller = backtrack_frame(|symbol_name| symbol_name.starts_with(OMIT_FRAME_SUFFIX));
+                            let stack_caller = get_current_stracktrace();
                             let thread = thread::current();
                             let thread_info = ThreadInfo { thread_id: thread.id(), name: thread.name().unwrap_or("no_thread").to_string() };
                             let stacktrace_created = &rwlock_wrapped.stack_created;
@@ -279,5 +273,15 @@ fn get_lock_identifier(stacktrace_created: &Option<Stracktrace>) -> &str {
         None => "n/a",
         Some(stacktrace) => &stacktrace.hash.as_ref()
     }
+}
+
+fn get_current_stracktrace() -> Result<Stracktrace, BacktrackError> {
+    // covers:
+    // rust_debugging_locks::debugging_locks::
+    // rust_debugging_locks::stacktrace_util::
+    const OMIT_FRAME_SUFFIX1: &str = "rust_debugging_locks:";
+    // <rust_debugging_locks::debugging_locks::RwLockWrapped<T> as core::default::Default>::default::haed7701ba5f48aa2:97
+    const OMIT_FRAME_SUFFIX2: &str = "<rust_debugging_locks:";
+    backtrack_frame(|symbol_name| symbol_name.starts_with(OMIT_FRAME_SUFFIX1) || symbol_name.starts_with(OMIT_FRAME_SUFFIX2))
 }
 
