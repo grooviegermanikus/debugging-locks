@@ -56,7 +56,7 @@ const LIB_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 impl<T> RwLockWrapped<T> {
     pub fn new(t: T) -> RwLockWrapped<T> {
-        info!("INIT WRAPPED RWLOCK (v{})", LIB_VERSION);
+        info!("NEW WRAPPED RWLOCK (v{})", LIB_VERSION);
         return match backtrack_frame(|symbol_name| symbol_name.starts_with(OMIT_FRAME_SUFFIX)) {
             Ok(stracktrace) => {
                 RwLockWrapped {
