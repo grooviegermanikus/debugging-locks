@@ -263,7 +263,7 @@ fn handle_blocked_reader_event(_since: Instant, elapsed: Duration,
 fn log_frames(msg: &str, locktag: &str, stacktrace: &&Stracktrace) {
     debug!(" |{}>\t{}:", locktag, msg);
     for frame in &stacktrace.frames {
-        debug!(" |{}>\t  {}:{}:{}", locktag, frame.filename, frame.method, frame.line_no);
+        debug!(" |{}>\t  {}!{}:{}", locktag, frame.filename, frame.method, frame.line_no);
     }
 }
 
