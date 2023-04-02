@@ -51,8 +51,6 @@ impl Display for BacktrackError {
 
 impl std::error::Error for BacktrackError {}
 
-const HASH_ALPHABET: &[u8] = b"0123456789abcdef";
-
 /// Returns a list of stack frames starting with innermost frame.
 ///
 /// # Examples

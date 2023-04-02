@@ -208,14 +208,16 @@ fn handle_blocked_writer_event(_since: Instant, elapsed: Duration,
                                stacktrace_created: &Option<Stracktrace>,
                                last_returned_lock_from: Arc<Mutex<Option<Stracktrace>>>,
                                stacktrace_caller: &Option<Stracktrace>) {
-    info!("WRITER BLOCKED on thread {} for {:?}", thread, elapsed);
+    let lock_hash_identifier = get_hash(stacktrace_created);
+
+    info!("WRITER BLOCKED on thread {} for {:?} (hash {:?})", thread, elapsed, lock_hash_identifier);
 
     match stacktrace_caller {
         None => {}
         Some(stacktrace) => {
-            debug!("  >blocking call:");
+            debug!(" |{}>\tblocking call:", lock_hash_identifier);
             for frame in &stacktrace.frames {
-                debug!("\t>{}:{}:{}", frame.filename, frame.method, frame.line_no);
+                debug!("\t>  {}:{}:{}", frame.filename, frame.method, frame.line_no);
             }
         }
     }
@@ -223,9 +225,9 @@ fn handle_blocked_writer_event(_since: Instant, elapsed: Duration,
     match last_returned_lock_from.lock().unwrap().as_ref() {
         None => {}
         Some(stacktrace) => {
-            debug!("  >current lock holder:");
+            debug!(" |{}>\tcurrent lock holder:", lock_hash_identifier);
             for frame in &stacktrace.frames {
-                debug!("\t>{}:{}:{}", frame.filename, frame.method, frame.line_no);
+                debug!("\t>  {}:{}:{}", frame.filename, frame.method, frame.line_no);
             }
         }
     }
@@ -233,9 +235,9 @@ fn handle_blocked_writer_event(_since: Instant, elapsed: Duration,
     match stacktrace_created {
         None => {}
         Some(stacktrace) => {
-            debug!("  >RwLock constructed here:");
+            debug!(" |{}>\tRwLock({}) constructed here:", lock_hash_identifier, lock_hash_identifier);
             for frame in &stacktrace.frames {
-                debug!("\t>{}:{}:{}", frame.filename, frame.method, frame.line_no);
+                debug!("\t{}:{}:{}", frame.filename, frame.method, frame.line_no);
             }
         }
     }
@@ -247,14 +249,16 @@ fn handle_blocked_reader_event(_since: Instant, elapsed: Duration,
                                stacktrace_created: &Option<Stracktrace>,
                                last_returned_lock_from: Arc<Mutex<Option<Stracktrace>>>,
                                stacktrace_caller: &Option<Stracktrace>) {
-    info!("READER BLOCKED on thread {} for {:?}", thread, elapsed);
+    let lock_hash_identifier = get_hash(stacktrace_created);
+
+    info!("READER BLOCKED on thread {} for {:?} (hash {:?})", thread, elapsed, lock_hash_identifier);
 
     match stacktrace_caller {
         None => {}
         Some(stacktrace) => {
-            debug!("  >blocking here:");
+            debug!(" |{}>\tblocking here:", lock_hash_identifier);
             for frame in &stacktrace.frames {
-                debug!("\t>{}:{}:{}", frame.filename, frame.method, frame.line_no);
+                debug!(" |{}>\t  {}:{}:{}", lock_hash_identifier, frame.filename, frame.method, frame.line_no);
             }
         }
     }
@@ -262,9 +266,9 @@ fn handle_blocked_reader_event(_since: Instant, elapsed: Duration,
     match last_returned_lock_from.lock().unwrap().as_ref() {
         None => {}
         Some(stacktrace) => {
-            debug!("  >concurrent lock acquired here:");
+            debug!(" |{}>\tcurrent lock holder:", lock_hash_identifier);
             for frame in &stacktrace.frames {
-                debug!("\t>{}:{}:{}", frame.filename, frame.method, frame.line_no);
+                debug!(" |{}>\t  {}:{}:{}", lock_hash_identifier, frame.filename, frame.method, frame.line_no);
             }
         }
     }
@@ -272,11 +276,20 @@ fn handle_blocked_reader_event(_since: Instant, elapsed: Duration,
     match stacktrace_created {
         None => {}
         Some(stacktrace) => {
-            debug!("  >RwLock constructed here:");
+            debug!(" |{}>\tRwLock({}) constructed here:", lock_hash_identifier, lock_hash_identifier);
             for frame in &stacktrace.frames {
-                debug!("\t>{}:{}:{}", frame.filename, frame.method, frame.line_no);
+                debug!(" |{}>\t  {}:{}:{}", lock_hash_identifier, frame.filename, frame.method, frame.line_no);
             }
         }
     }
+}
+
+fn get_hash(stacktrace_created: &Option<Stracktrace>) -> &str {
+    let lock_hash_identifier: &str =
+        match stacktrace_created {
+            None => "n/a",
+            Some(stacktrace) => &stacktrace.hash.as_ref()
+        };
+    lock_hash_identifier
 }
 
