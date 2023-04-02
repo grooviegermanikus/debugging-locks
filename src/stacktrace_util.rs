@@ -1,7 +1,16 @@
+use std::collections::hash_map::DefaultHasher;
 use std::fmt;
 use std::fmt::Display;
+use std::hash::{Hash, Hasher};
 use std::path::PathBuf;
 use std::thread::ThreadId;
+use base58::ToBase58;
+
+pub struct Stracktrace {
+    pub frames: Vec<Frame>,
+    // simple tagging of stacktrace e.g. 'JuCPL' - use for grepping
+    pub hash: String,
+}
 
 pub struct Frame {
     pub method: String,
@@ -42,6 +51,8 @@ impl Display for BacktrackError {
 
 impl std::error::Error for BacktrackError {}
 
+const HASH_ALPHABET: &[u8] = b"0123456789abcdef";
+
 /// Returns a list of stack frames starting with innermost frame.
 ///
 /// # Examples
@@ -50,13 +61,14 @@ impl std::error::Error for BacktrackError {}
 /// use rust_debugging_locks::stacktrace_util::backtrack_frame;
 /// let frames = backtrack_frame(|symbol_name| symbol_name.starts_with("rust_basics::debugging_locks::"));
 /// ```
-pub fn backtrack_frame(fn_skip_frame: fn(&str) -> bool) -> Result<Vec<Frame>, BacktrackError> {
+pub fn backtrack_frame(fn_skip_frame: fn(&str) -> bool) -> Result<Stracktrace, BacktrackError> {
 
     const FRAMES_LIMIT: usize = 99;
 
     let mut started = false;
     let mut stop = false;
     let mut symbols = 0;
+    let mut hash: String = String::from("no_hash");
 
     // ordering: inside out
     let mut frames: Vec<Frame> = vec![];
@@ -95,6 +107,10 @@ pub fn backtrack_frame(fn_skip_frame: fn(&str) -> bool) -> Result<Vec<Frame>, Ba
 
             if !symbol_name.starts_with("backtrace::backtrace::")
                 && !fn_skip_frame(symbol_name.as_str()) {
+                assert_eq!(started, false);
+                let addr_instruction_pointer = frame.ip() as u32;
+                hash = addr_instruction_pointer.to_be_bytes().to_base58();
+
                 started = true;
                 // do not return to catch the current frame
             }
@@ -121,7 +137,7 @@ pub fn backtrack_frame(fn_skip_frame: fn(&str) -> bool) -> Result<Vec<Frame>, Ba
             return Err(BacktrackError::NoStartFrame);
         }
     } else {
-        return Ok(frames)
+        return Ok(Stracktrace { frames, hash });
     }
 
 }
@@ -138,12 +154,12 @@ mod tests {
 
     #[test]
     fn stacktrace_from_method() {
-        let frames = caller_function();
+        let stacktrace = caller_function().unwrap();
         // debug_frames(&frames);
-        assert!(frames.unwrap().get(0).unwrap().method.starts_with("rust_debugging_locks::stacktrace_util::tests::caller_function::h"));
+        assert!(stacktrace.frames.get(0).unwrap().method.starts_with("rust_debugging_locks::stacktrace_util::tests::caller_function::h"));
     }
 
-    fn caller_function() -> Result<Vec<Frame>, BacktrackError> {
+    fn caller_function() -> Result<Stracktrace, BacktrackError> {
         backtrack_frame(|symbol_name| !symbol_name.contains("::caller_function"))
     }
 }

@@ -33,6 +33,7 @@ RUST_LOG=rust_debugging_locks::debugging_locks=info the_binary
 * enhance benchmark for rwlock wrapper
 * symbolize stacktraces lazy; keep only the instruction pointer/symbol address
 * check if __last_returned_lock_from__ is expensive; if yes make it an optional feature
+* make thresholds configurable (e.g. via env variables)
 
 ### Startup info (how to figure out if it's working)
     [2023-05-02T18:17:53Z INFO  rust_debugging_locks::debugging_locks] SETUP RWLOCK WRAPPER (v0.0.0)
