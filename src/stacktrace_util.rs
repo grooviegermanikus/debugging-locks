@@ -66,7 +66,7 @@ pub fn backtrack_frame(fn_skip_frame: fn(&str) -> bool) -> Result<Stracktrace, B
     let mut started = false;
     let mut stop = false;
     let mut symbols = 0;
-    let mut hash: String = String::from("no_hash");
+    let mut hasher = DefaultHasher::new();
 
     // ordering: inside out
     let mut frames: Vec<Frame> = vec![];
@@ -106,11 +106,6 @@ pub fn backtrack_frame(fn_skip_frame: fn(&str) -> bool) -> Result<Stracktrace, B
             if !symbol_name.starts_with("backtrace::backtrace::")
                 && !fn_skip_frame(symbol_name.as_str()) {
 
-                if !started {
-                    let addr_instruction_pointer = frame.ip() as u32;
-                    hash = addr_instruction_pointer.to_be_bytes().to_base58();
-                }
-
                 started = true;
                 // do not return to catch the current frame
 
@@ -124,6 +119,8 @@ pub fn backtrack_frame(fn_skip_frame: fn(&str) -> bool) -> Result<Stracktrace, B
                 method: symbol.name().unwrap().to_string(),
                 filename: symbol.filename().unwrap().file_name().unwrap().to_str().unwrap().to_string(),
                 line_no: symbol.lineno().unwrap() });
+
+            hasher.write_u32(frame.ip() as u32);
         });
 
         !stop
@@ -137,6 +134,8 @@ pub fn backtrack_frame(fn_skip_frame: fn(&str) -> bool) -> Result<Stracktrace, B
             return Err(BacktrackError::NoStartFrame);
         }
     } else {
+        let hash32 = hasher.finish() as u32;
+        let hash = hash32.to_be_bytes().to_base58();
         return Ok(Stracktrace { frames, hash });
     }
 

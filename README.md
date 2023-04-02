@@ -40,11 +40,15 @@ RUST_LOG=rust_debugging_locks::debugging_locks=info the_binary
 
 
 ### Sample output
-	[2023-05-18T11:39:32Z INFO  rust_basics::debugging_locks] WRITER WAS BLOCKED on thread main:ThreadId(1) for 1.490548125s
-	[2023-05-18T11:39:32Z DEBUG  rust_basics::debugging_locks] Accessed here:
-	[2023-05-18T11:39:32Z DEBUG  rust_basics::debugging_locks] 	>debugging_locks_run.rs:rust_basics::debugging_locks_run::runit::hbcf42217d721148f:26
-	[2023-05-18T11:39:32Z DEBUG  rust_basics::debugging_locks] 	>main.rs:rust_basics::main::h7b144dc665faa5e5:45
-	[2023-05-18T11:39:32Z DEBUG  rust_basics::debugging_locks] Lock defined here:
-	[2023-05-18T11:39:32Z DEBUG  rust_basics::debugging_locks] 	>debugging_locks_run.rs:rust_basics::debugging_locks_run::runit::hbcf42217d721148f:11
-	[2023-05-18T11:39:32Z DEBUG  rust_basics::debugging_locks] 	>main.rs:rust_basics::main::h7b144dc665faa5e5:45
+    [2023-04-02T21:02:13Z INFO  rust_debugging_locks::debugging_locks] READER BLOCKED on thread main:ThreadId(1) for 10.183237ms (locktag ebDRt)
+    [2023-04-02T21:02:13Z DEBUG rust_debugging_locks::debugging_locks]  |ebDRt>     blocking call:
+    [2023-04-02T21:02:13Z DEBUG rust_debugging_locks::debugging_locks]  |ebDRt>       simple.rs:simple::writer_blocks_reader::h72064aa0acdf6155:60
+    [2023-04-02T21:02:13Z DEBUG rust_debugging_locks::debugging_locks]  |ebDRt>       simple.rs:simple::main::h821b9ad0f7379986:12
+    [2023-04-02T21:02:13Z DEBUG rust_debugging_locks::debugging_locks]  |ebDRt>     current lock holder:
+    [2023-04-02T21:02:13Z DEBUG rust_debugging_locks::debugging_locks]  |ebDRt>       simple.rs:simple::writer_blocks_reader::{{closure}}::hba167631f187bd26:51
+    [2023-04-02T21:02:13Z DEBUG rust_debugging_locks::debugging_locks]  |ebDRt>     rwlock constructed here:
+    [2023-04-02T21:02:13Z DEBUG rust_debugging_locks::debugging_locks]  |ebDRt>       simple.rs:simple::writer_blocks_reader::h72064aa0acdf6155:47
+    [2023-04-02T21:02:13Z DEBUG rust_debugging_locks::debugging_locks]  |ebDRt>       simple.rs:simple::main::h821b9ad0f7379986:12
 
+### logtags
+A _logtag_ is assigned a __RwLock__ instance when it is created. The logtag is used to group log lines together. The logtag is a hash of the stacktrace of the caller of the __RwLock::new()__ method.

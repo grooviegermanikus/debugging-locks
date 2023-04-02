@@ -229,7 +229,7 @@ fn handle_blocked_writer_event(_since: Instant, elapsed: Duration,
     match stacktrace_created {
         None => {}
         Some(stacktrace) => {
-            log_frames("RwLock constructed here", locktag, &stacktrace);
+            log_frames("rwlock constructed here", locktag, &stacktrace);
         }
     }
 }
@@ -261,7 +261,7 @@ fn handle_blocked_reader_event(_since: Instant, elapsed: Duration,
     match stacktrace_created {
         None => {}
         Some(stacktrace) => {
-            log_frames("RwLock constructed here", locktag, &stacktrace);
+            log_frames("rwlock constructed here", locktag, &stacktrace);
         }
     }
 }
