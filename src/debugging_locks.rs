@@ -208,28 +208,28 @@ fn handle_blocked_writer_event(_since: Instant, elapsed: Duration,
                                stacktrace_created: &Option<Stracktrace>,
                                last_returned_lock_from: Arc<Mutex<Option<Stracktrace>>>,
                                stacktrace_caller: &Option<Stracktrace>) {
-    let lock_hash_identifier = get_lock_identifier(stacktrace_created);
+    let locktag = get_lock_identifier(stacktrace_created);
 
-    info!("WRITER BLOCKED on thread {} for {:?} (hash {:?})", thread, elapsed, lock_hash_identifier);
+    info!("WRITER BLOCKED on thread {} for {:?} (locktag {})", thread, elapsed, locktag);
 
     match stacktrace_caller {
         None => {}
         Some(stacktrace) => {
-            log_frames("blocking call", lock_hash_identifier, &stacktrace);
+            log_frames("blocking call", locktag, &stacktrace);
         }
     }
 
     match last_returned_lock_from.lock().unwrap().as_ref() {
         None => {}
         Some(stacktrace) => {
-            log_frames("current lock holder", lock_hash_identifier, &stacktrace);
+            log_frames("current lock holder", locktag, &stacktrace);
         }
     }
 
     match stacktrace_created {
         None => {}
         Some(stacktrace) => {
-            log_frames("RwLock constructed here", lock_hash_identifier, &stacktrace);
+            log_frames("RwLock constructed here", locktag, &stacktrace);
         }
     }
 }
@@ -240,46 +240,44 @@ fn handle_blocked_reader_event(_since: Instant, elapsed: Duration,
                                stacktrace_created: &Option<Stracktrace>,
                                last_returned_lock_from: Arc<Mutex<Option<Stracktrace>>>,
                                stacktrace_caller: &Option<Stracktrace>) {
-    let lock_hash_identifier = get_lock_identifier(stacktrace_created);
+    let locktag = get_lock_identifier(stacktrace_created);
 
-    info!("READER BLOCKED on thread {} for {:?} (hash {:?})", thread, elapsed, lock_hash_identifier);
+    info!("READER BLOCKED on thread {} for {:?} (locktag {})", thread, elapsed, locktag);
 
     match stacktrace_caller {
         None => {}
         Some(stacktrace) => {
-            log_frames("blocking call", lock_hash_identifier, &stacktrace);
+            log_frames("blocking call", locktag, &stacktrace);
         }
     }
 
     match last_returned_lock_from.lock().unwrap().as_ref() {
         None => {}
         Some(stacktrace) => {
-            log_frames("current lock holder", lock_hash_identifier, &stacktrace);
+            log_frames("current lock holder", locktag, &stacktrace);
         }
     }
 
     match stacktrace_created {
         None => {}
         Some(stacktrace) => {
-            log_frames("RwLock constructed here", lock_hash_identifier, &stacktrace);
+            log_frames("RwLock constructed here", locktag, &stacktrace);
         }
     }
 }
 
-fn log_frames(msg: &str, lock_hash_identifier: &str, stacktrace: &&Stracktrace) {
-    debug!(" |{}>\t{}:", lock_hash_identifier, msg);
+fn log_frames(msg: &str, locktag: &str, stacktrace: &&Stracktrace) {
+    debug!(" |{}>\t{}:", locktag, msg);
     for frame in &stacktrace.frames {
-        debug!(" |{}>\t  {}:{}:{}", lock_hash_identifier, frame.filename, frame.method, frame.line_no);
+        debug!(" |{}>\t  {}:{}:{}", locktag, frame.filename, frame.method, frame.line_no);
     }
 }
 
 // e.g. "NFBZP"
 fn get_lock_identifier(stacktrace_created: &Option<Stracktrace>) -> &str {
-    let lock_hash_identifier: &str =
-        match stacktrace_created {
-            None => "n/a",
-            Some(stacktrace) => &stacktrace.hash.as_ref()
-        };
-    lock_hash_identifier
+    match stacktrace_created {
+        None => "n/a",
+        Some(stacktrace) => &stacktrace.hash.as_ref()
+    }
 }
 
