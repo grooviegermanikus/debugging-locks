@@ -115,12 +115,22 @@ pub fn backtrack_frame(fn_skip_frame: fn(&str) -> bool) -> Result<Stracktrace, B
                 return;
             }
 
-            frames.push(Frame {
+            let frame = Frame {
                 method: symbol.name().unwrap().to_string(),
                 filename: symbol.filename().unwrap().file_name().unwrap().to_str().unwrap().to_string(),
-                line_no: symbol.lineno().unwrap() });
+                line_no: symbol.lineno().unwrap()
+            };
 
-            hasher.write_u32(frame.ip() as u32);
+            // hash frame data
+            hasher.write(frame.method.as_bytes());
+            hasher.write_i32(0x2A66ED); // random separator
+            hasher.write(frame.filename.as_bytes());
+            hasher.write_i32(0x2A66ED); // random separator
+            hasher.write_u32(frame.line_no);
+            hasher.write_i32(0xF122ED); // random separator
+
+            frames.push(frame);
+
         });
 
         !stop
