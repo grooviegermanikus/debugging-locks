@@ -40,15 +40,51 @@ RUST_LOG=rust_debugging_locks::debugging_locks=info the_binary
 
 
 ### Sample output
-    [2023-04-02T21:02:13Z INFO  rust_debugging_locks::debugging_locks] READER BLOCKED on thread main:ThreadId(1) for 10.183237ms (locktag ebDRt)
-    [2023-04-02T21:02:13Z DEBUG rust_debugging_locks::debugging_locks]  |ebDRt>     blocking call:
-    [2023-04-02T21:02:13Z DEBUG rust_debugging_locks::debugging_locks]  |ebDRt>       simple.rs:simple::writer_blocks_reader::h72064aa0acdf6155:60
-    [2023-04-02T21:02:13Z DEBUG rust_debugging_locks::debugging_locks]  |ebDRt>       simple.rs:simple::main::h821b9ad0f7379986:12
-    [2023-04-02T21:02:13Z DEBUG rust_debugging_locks::debugging_locks]  |ebDRt>     current lock holder:
-    [2023-04-02T21:02:13Z DEBUG rust_debugging_locks::debugging_locks]  |ebDRt>       simple.rs:simple::writer_blocks_reader::{{closure}}::hba167631f187bd26:51
-    [2023-04-02T21:02:13Z DEBUG rust_debugging_locks::debugging_locks]  |ebDRt>     rwlock constructed here:
-    [2023-04-02T21:02:13Z DEBUG rust_debugging_locks::debugging_locks]  |ebDRt>       simple.rs:simple::writer_blocks_reader::h72064aa0acdf6155:47
-    [2023-04-02T21:02:13Z DEBUG rust_debugging_locks::debugging_locks]  |ebDRt>       simple.rs:simple::main::h821b9ad0f7379986:12
+    [2023-05-03T09:33:26Z INFO  rust_debugging_locks::debugging_locks] READER BLOCKED on thread main:ThreadId(1) for 7.597502ms (locktag xFxiD)
+    [2023-05-03T09:33:26Z DEBUG rust_debugging_locks::debugging_locks]  |xFxiD>     blocking call:
+    [2023-05-03T09:33:26Z DEBUG rust_debugging_locks::debugging_locks]  |xFxiD>       simple.rs!simple::writer_blocks_reader::h90b32e8be4ee69f9:60
+    [2023-05-03T09:33:26Z DEBUG rust_debugging_locks::debugging_locks]  |xFxiD>       simple.rs!simple::main::h51d8a2c7c463da66:12
+    [2023-05-03T09:33:26Z DEBUG rust_debugging_locks::debugging_locks]  |xFxiD>     current lock holder:
+    [2023-05-03T09:33:26Z DEBUG rust_debugging_locks::debugging_locks]  |xFxiD>       simple.rs!simple::writer_blocks_reader::{{closure}}::h56d46ee0d6ad82da:51
+    [2023-05-03T09:33:26Z DEBUG rust_debugging_locks::debugging_locks]  |xFxiD>     rwlock constructed here:
+    [2023-05-03T09:33:26Z DEBUG rust_debugging_locks::debugging_locks]  |xFxiD>       simple.rs!simple::writer_blocks_reader::h90b32e8be4ee69f9:47
+    [2023-05-03T09:33:26Z DEBUG rust_debugging_locks::debugging_locks]  |xFxiD>       simple.rs!simple::main::h51d8a2c7c463da66:12
+    [2023-05-03T09:33:26Z INFO  rust_debugging_locks::debugging_locks] READER BLOCKED on thread main:ThreadId(1) for 9.658057ms (locktag xFxiD)
+    [2023-05-03T09:33:26Z DEBUG rust_debugging_locks::debugging_locks]  |xFxiD>     blocking call:
+    [2023-05-03T09:33:26Z DEBUG rust_debugging_locks::debugging_locks]  |xFxiD>       simple.rs!simple::writer_blocks_reader::h90b32e8be4ee69f9:60
+    [2023-05-03T09:33:26Z DEBUG rust_debugging_locks::debugging_locks]  |xFxiD>       simple.rs!simple::main::h51d8a2c7c463da66:12
+    [2023-05-03T09:33:26Z DEBUG rust_debugging_locks::debugging_locks]  |xFxiD>     current lock holder:
+    [2023-05-03T09:33:26Z DEBUG rust_debugging_locks::debugging_locks]  |xFxiD>       simple.rs!simple::writer_blocks_reader::{{closure}}::h56d46ee0d6ad82da:51
+    [2023-05-03T09:33:26Z DEBUG rust_debugging_locks::debugging_locks]  |xFxiD>     rwlock constructed here:
+    [2023-05-03T09:33:26Z DEBUG rust_debugging_locks::debugging_locks]  |xFxiD>       simple.rs!simple::writer_blocks_reader::h90b32e8be4ee69f9:47
+    [2023-05-03T09:33:26Z DEBUG rust_debugging_locks::debugging_locks]  |xFxiD>       simple.rs!simple::main::h51d8a2c7c463da66:12
+    [2023-05-03T09:33:26Z INFO  rust_debugging_locks::debugging_locks] READER BLOCKED on thread main:ThreadId(1) for 20.825162ms (locktag xFxiD)
+    [2023-05-03T09:33:26Z DEBUG rust_debugging_locks::debugging_locks]  |xFxiD>     blocking call:
+    [2023-05-03T09:33:26Z DEBUG rust_debugging_locks::debugging_locks]  |xFxiD>       simple.rs!simple::writer_blocks_reader::h90b32e8be4ee69f9:60
+    [2023-05-03T09:33:26Z DEBUG rust_debugging_locks::debugging_locks]  |xFxiD>       simple.rs!simple::main::h51d8a2c7c463da66:12
+    [2023-05-03T09:33:26Z DEBUG rust_debugging_locks::debugging_locks]  |xFxiD>     current lock holder:
+    [2023-05-03T09:33:26Z DEBUG rust_debugging_locks::debugging_locks]  |xFxiD>       simple.rs!simple::writer_blocks_reader::{{closure}}::h56d46ee0d6ad82da:51
+    [2023-05-03T09:33:26Z DEBUG rust_debugging_locks::debugging_locks]  |xFxiD>     rwlock constructed here:
+    [2023-05-03T09:33:26Z DEBUG rust_debugging_locks::debugging_locks]  |xFxiD>       simple.rs!simple::writer_blocks_reader::h90b32e8be4ee69f9:47
+    [2023-05-03T09:33:26Z DEBUG rust_debugging_locks::debugging_locks]  |xFxiD>       simple.rs!simple::main::h51d8a2c7c463da66:12
+    [2023-05-03T09:33:26Z INFO  rust_debugging_locks::debugging_locks] READER BLOCKED on thread main:ThreadId(1) for 24.683994ms (locktag xFxiD)
+    [2023-05-03T09:33:26Z DEBUG rust_debugging_locks::debugging_locks]  |xFxiD>     blocking call:
+    [2023-05-03T09:33:26Z DEBUG rust_debugging_locks::debugging_locks]  |xFxiD>       simple.rs!simple::writer_blocks_reader::h90b32e8be4ee69f9:60
+    [2023-05-03T09:33:26Z DEBUG rust_debugging_locks::debugging_locks]  |xFxiD>       simple.rs!simple::main::h51d8a2c7c463da66:12
+    [2023-05-03T09:33:26Z DEBUG rust_debugging_locks::debugging_locks]  |xFxiD>     current lock holder:
+    [2023-05-03T09:33:26Z DEBUG rust_debugging_locks::debugging_locks]  |xFxiD>       simple.rs!simple::writer_blocks_reader::{{closure}}::h56d46ee0d6ad82da:51
+    [2023-05-03T09:33:26Z DEBUG rust_debugging_locks::debugging_locks]  |xFxiD>     rwlock constructed here:
+    [2023-05-03T09:33:26Z DEBUG rust_debugging_locks::debugging_locks]  |xFxiD>       simple.rs!simple::writer_blocks_reader::h90b32e8be4ee69f9:47
+    [2023-05-03T09:33:26Z DEBUG rust_debugging_locks::debugging_locks]  |xFxiD>       simple.rs!simple::main::h51d8a2c7c463da66:12
+    [2023-05-03T09:33:26Z INFO  rust_debugging_locks::debugging_locks] READER BLOCKED on thread main:ThreadId(1) for 38.673215ms (locktag xFxiD)
+    [2023-05-03T09:33:26Z DEBUG rust_debugging_locks::debugging_locks]  |xFxiD>     blocking call:
+    [2023-05-03T09:33:26Z DEBUG rust_debugging_locks::debugging_locks]  |xFxiD>       simple.rs!simple::writer_blocks_reader::h90b32e8be4ee69f9:60
+    [2023-05-03T09:33:26Z DEBUG rust_debugging_locks::debugging_locks]  |xFxiD>       simple.rs!simple::main::h51d8a2c7c463da66:12
+    [2023-05-03T09:33:26Z DEBUG rust_debugging_locks::debugging_locks]  |xFxiD>     current lock holder:
+    [2023-05-03T09:33:26Z DEBUG rust_debugging_locks::debugging_locks]  |xFxiD>       simple.rs!simple::writer_blocks_reader::{{closure}}::h56d46ee0d6ad82da:51
+    [2023-05-03T09:33:26Z DEBUG rust_debugging_locks::debugging_locks]  |xFxiD>     rwlock constructed here:
+    [2023-05-03T09:33:26Z DEBUG rust_debugging_locks::debugging_locks]  |xFxiD>       simple.rs!simple::writer_blocks_reader::h90b32e8be4ee69f9:47
+    [2023-05-03T09:33:26Z DEBUG rust_debugging_locks::debugging_locks]  |xFxiD>       simple.rs!simple::main::h51d8a2c7c463da66:12
 
-### logtags
-A _logtag_ is assigned a __RwLock__ instance when it is created. The logtag is used to group log lines together. The logtag is a hash of the stacktrace of the caller of the __RwLock::new()__ method.
+### locktag
+A _locktag_ is assigned a __RwLock__ instance when it is created. The _locktag_ is used to group log lines together. The _locktag_ is a hash of the stacktrace of the caller of the __RwLock::new()__ method.
