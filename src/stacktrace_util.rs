@@ -5,6 +5,7 @@ use std::hash::{Hash, Hasher};
 use std::path::PathBuf;
 use std::thread::ThreadId;
 use base58::ToBase58;
+use log::{debug, Level, log};
 
 pub struct Stracktrace {
     pub frames: Vec<Frame>,
@@ -157,14 +158,46 @@ fn debug_frames(frames: &Result<Vec<Frame>, BacktrackError>) {
     }
 }
 
+pub fn log_frames(level: Level, msg: &str, stacktrace: &Stracktrace) {
+    log!(level, " |->\t{}:", msg);
+    for frame in &stacktrace.frames {
+        log!(level, " |->\t  {}!{}:{}", frame.filename, frame.method, frame.line_no);
+    }
+}
+
+pub fn get_current_stracktrace() -> Result<Stracktrace, BacktrackError> {
+    // covers:
+    // rust_debugging_locks::debugging_locks::
+    // rust_debugging_locks::stacktrace_util::
+    const OMIT_FRAME_SUFFIX1: &str = "rust_debugging_locks:";
+    // <rust_debugging_locks::debugging_locks::RwLockWrapped<T> as core::default::Default>::default::haed7701ba5f48aa2:97
+    const OMIT_FRAME_SUFFIX2: &str = "<rust_debugging_locks:";
+    backtrack_frame(|symbol_name| symbol_name.starts_with(OMIT_FRAME_SUFFIX1) || symbol_name.starts_with(OMIT_FRAME_SUFFIX2))
+}
+
+
+
+#[derive(Debug, Clone)]
+pub struct AllocationTracker {}
+
+impl AllocationTracker {
+    pub fn new() -> Self {
+        let stracktrace = get_current_stracktrace().unwrap();
+        log_frames(Level::Info, "AllocationTracker::new", &stracktrace);
+        AllocationTracker {}
+    }
+
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn stacktrace_from_method() {
+        tracing_subscriber::fmt::init();
         let stacktrace = caller_function().unwrap();
-        // debug_frames(&frames);
+        log_frames(Level::Info, "stacktrace_from_method", &stacktrace);
         assert!(stacktrace.frames.get(0).unwrap().method.starts_with("rust_debugging_locks::stacktrace_util::tests::caller_function::h"),
                 "method name: {}", stacktrace.frames.get(0).unwrap().method);
     }
@@ -172,4 +205,5 @@ mod tests {
     fn caller_function() -> Result<Stracktrace, BacktrackError> {
         backtrack_frame(|symbol_name| !symbol_name.contains("::caller_function"))
     }
+
 }
