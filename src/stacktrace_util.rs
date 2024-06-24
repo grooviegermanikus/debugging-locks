@@ -1,11 +1,11 @@
+use base58::ToBase58;
+use log::{debug, log, Level};
 use std::collections::hash_map::DefaultHasher;
 use std::fmt;
 use std::fmt::Display;
 use std::hash::{Hash, Hasher};
 use std::path::PathBuf;
 use std::thread::ThreadId;
-use base58::ToBase58;
-use log::{debug, Level, log};
 
 pub struct Stracktrace {
     pub frames: Vec<Frame>,
@@ -40,15 +40,13 @@ impl Display for ThreadInfo {
 impl Display for BacktrackError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            BacktrackError::NoStartFrame =>
-                write!(f, "Start Frame not found!"),
+            BacktrackError::NoStartFrame => write!(f, "Start Frame not found!"),
             BacktrackError::NoDebugSymbols => {
                 write!(f, "No debug symbols! Did you build in release mode?")
             }
         }
     }
 }
-
 
 impl std::error::Error for BacktrackError {}
 
@@ -61,7 +59,6 @@ impl std::error::Error for BacktrackError {}
 /// let frames = backtrack_frame(|symbol_name| symbol_name.starts_with("rust_basics::debugging_locks::"));
 /// ```
 pub fn backtrack_frame(fn_skip_frame: fn(&str) -> bool) -> Result<Stracktrace, BacktrackError> {
-
     const FRAMES_LIMIT: usize = 99;
 
     let mut started = false;
@@ -95,7 +92,11 @@ pub fn backtrack_frame(fn_skip_frame: fn(&str) -> bool) -> Result<Stracktrace, B
             }
 
             // /rustc/69f9c33d71c871fc16ac445211281c6e7a340943/library/std/src/rt.rs
-            if symbol.filename().unwrap().starts_with(PathBuf::from("/rustc")) {
+            if symbol
+                .filename()
+                .unwrap()
+                .starts_with(PathBuf::from("/rustc"))
+            {
                 stop = true;
                 return;
             }
@@ -105,11 +106,10 @@ pub fn backtrack_frame(fn_skip_frame: fn(&str) -> bool) -> Result<Stracktrace, B
             // module_path is "rust_debugging_locks::stacktrace_util"
 
             if !symbol_name.starts_with("backtrace::backtrace::")
-                && !fn_skip_frame(symbol_name.as_str()) {
-
+                && !fn_skip_frame(symbol_name.as_str())
+            {
                 started = true;
                 // do not return to catch the current frame
-
             }
 
             if !started {
@@ -118,8 +118,15 @@ pub fn backtrack_frame(fn_skip_frame: fn(&str) -> bool) -> Result<Stracktrace, B
 
             let frame = Frame {
                 method: symbol.name().unwrap().to_string(),
-                filename: symbol.filename().unwrap().file_name().unwrap().to_str().unwrap().to_string(),
-                line_no: symbol.lineno().unwrap()
+                filename: symbol
+                    .filename()
+                    .unwrap()
+                    .file_name()
+                    .unwrap()
+                    .to_str()
+                    .unwrap()
+                    .to_string(),
+                line_no: symbol.lineno().unwrap(),
             };
 
             // hash frame data
@@ -131,13 +138,12 @@ pub fn backtrack_frame(fn_skip_frame: fn(&str) -> bool) -> Result<Stracktrace, B
             hasher.write_i32(0xF122ED); // random separator
 
             frames.push(frame);
-
         });
 
         !stop
     });
 
-    if started == false {
+    if !started {
         if symbols == 0 {
             // detected implicitly by checking frames
             return Err(BacktrackError::NoDebugSymbols);
@@ -149,7 +155,6 @@ pub fn backtrack_frame(fn_skip_frame: fn(&str) -> bool) -> Result<Stracktrace, B
         let hash = hash32.to_be_bytes().to_base58();
         return Ok(Stracktrace { frames, hash });
     }
-
 }
 
 fn debug_frames(frames: &Result<Vec<Frame>, BacktrackError>) {
@@ -161,7 +166,13 @@ fn debug_frames(frames: &Result<Vec<Frame>, BacktrackError>) {
 pub fn log_frames(level: Level, msg: &str, stacktrace: &Stracktrace) {
     log!(level, " |->\t{}:", msg);
     for frame in &stacktrace.frames {
-        log!(level, " |->\t  {}!{}:{}", frame.filename, frame.method, frame.line_no);
+        log!(
+            level,
+            " |->\t  {}!{}:{}",
+            frame.filename,
+            frame.method,
+            frame.line_no
+        );
     }
 }
 
@@ -172,10 +183,10 @@ pub fn get_current_stracktrace() -> Result<Stracktrace, BacktrackError> {
     const OMIT_FRAME_SUFFIX1: &str = "rust_debugging_locks:";
     // <rust_debugging_locks::debugging_locks::RwLockWrapped<T> as core::default::Default>::default::haed7701ba5f48aa2:97
     const OMIT_FRAME_SUFFIX2: &str = "<rust_debugging_locks:";
-    backtrack_frame(|symbol_name| symbol_name.starts_with(OMIT_FRAME_SUFFIX1) || symbol_name.starts_with(OMIT_FRAME_SUFFIX2))
+    backtrack_frame(|symbol_name| {
+        symbol_name.starts_with(OMIT_FRAME_SUFFIX1) || symbol_name.starts_with(OMIT_FRAME_SUFFIX2)
+    })
 }
-
-
 
 #[derive(Debug, Clone)]
 pub struct AllocationTracker {}
@@ -186,7 +197,6 @@ impl AllocationTracker {
         log_frames(Level::Info, "AllocationTracker::new", &stracktrace);
         AllocationTracker {}
     }
-
 }
 
 #[cfg(test)]
@@ -198,12 +208,19 @@ mod tests {
         tracing_subscriber::fmt::init();
         let stacktrace = caller_function().unwrap();
         log_frames(Level::Info, "stacktrace_from_method", &stacktrace);
-        assert!(stacktrace.frames.get(0).unwrap().method.starts_with("rust_debugging_locks::stacktrace_util::tests::caller_function::h"),
-                "method name: {}", stacktrace.frames.get(0).unwrap().method);
+        assert!(
+            stacktrace
+                .frames
+                .get(0)
+                .unwrap()
+                .method
+                .starts_with("rust_debugging_locks::stacktrace_util::tests::caller_function::h"),
+            "method name: {}",
+            stacktrace.frames.get(0).unwrap().method
+        );
     }
 
     fn caller_function() -> Result<Stracktrace, BacktrackError> {
         backtrack_frame(|symbol_name| !symbol_name.contains("::caller_function"))
     }
-
 }

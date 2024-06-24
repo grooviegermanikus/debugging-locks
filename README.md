@@ -8,6 +8,13 @@ The wrapper keeps track of the callers' and creators' stackframes to provide deb
 * you need to include debug symbols to see the stacktraces
 
 #### enable debug symbols for release
+
+using Env:
+
+     RUSTFLAGS=-g cargo build --release
+
+or add to Cargo.toml:
+
     [profile.release]
     debug = true
 (this will increase the binary size by 20x; performance/optimization of machine code is NOT affected)

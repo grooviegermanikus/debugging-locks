@@ -1,14 +1,17 @@
-use core::fmt;
-use std::sync::{Arc, LockResult, Mutex, MutexGuard, RwLock, RwLockReadGuard, RwLockWriteGuard, TryLockError, TryLockResult};
-use std::{ptr, thread};
-use std::cell::{Cell, RefCell};
-use std::sync::atomic::AtomicPtr;
-use std::time::{Duration, Instant};
-use log::{debug, info, warn};
-use serde::{Serialize, Serializer};
-use serde::ser::Error;
 use crate::stacktrace_util::{backtrack_frame, BacktrackError, Frame, Stracktrace, ThreadInfo};
 use crate::thresholds_config;
+use core::fmt;
+use log::{debug, info, warn};
+use serde::ser::Error;
+use serde::{Serialize, Serializer};
+use std::cell::{Cell, RefCell};
+use std::sync::atomic::AtomicPtr;
+use std::sync::{
+    Arc, LockResult, Mutex, MutexGuard, RwLock, RwLockReadGuard, RwLockWriteGuard, TryLockError,
+    TryLockResult,
+};
+use std::time::{Duration, Instant};
+use std::{ptr, thread};
 
 // newtype pattern
 pub struct RwLockWrapped<T: ?Sized> {
@@ -25,12 +28,12 @@ unsafe impl<T: ?Sized + Send + Sync> Sync for RwLockWrapped<T> {}
 
 // from https://rust-random.github.io/rand/src/serde/ser/impls.rs.html#594-607
 impl<T: ?Sized> Serialize for RwLockWrapped<T>
-    where
-        T: Serialize,
+where
+    T: Serialize,
 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where
-            S: Serializer,
+    where
+        S: Serializer,
     {
         match self.inner.read() {
             Ok(locked) => locked.serialize(serializer),
@@ -38,7 +41,6 @@ impl<T: ?Sized> Serialize for RwLockWrapped<T>
         }
     }
 }
-
 
 impl<T: ?Sized + fmt::Debug> fmt::Debug for RwLockWrapped<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -52,20 +54,23 @@ impl<T> RwLockWrapped<T> {
     pub fn new(t: T) -> RwLockWrapped<T> {
         info!("NEW WRAPPED RWLOCK (v{})", LIB_VERSION);
         return match get_current_stracktrace() {
-            Ok(stracktrace) => {
-                RwLockWrapped {
-                    inner: RwLock::new(t),
-                    stack_created: Option::from(stracktrace),
-                    last_returned_lock_from: Arc::new(Mutex::new(None)) }
-            }
+            Ok(stracktrace) => RwLockWrapped {
+                inner: RwLock::new(t),
+                stack_created: Option::from(stracktrace),
+                last_returned_lock_from: Arc::new(Mutex::new(None)),
+            },
             Err(backtrack_error) => {
-                warn!("Unable to determine stacktrace - continue without! (error: {})", backtrack_error);
+                warn!(
+                    "Unable to determine stacktrace - continue without! (error: {})",
+                    backtrack_error
+                );
                 RwLockWrapped {
                     inner: RwLock::new(t),
                     stack_created: None,
-                    last_returned_lock_from: Arc::new(Mutex::new(None)) }
+                    last_returned_lock_from: Arc::new(Mutex::new(None)),
+                }
             }
-        }
+        };
     }
 
     pub fn to_rwlock(&self) -> &RwLock<T> {
@@ -82,6 +87,10 @@ impl<T> RwLockWrapped<T> {
 
     pub fn read(&self) -> LockResult<RwLockReadGuard<'_, T>> {
         read_smart(&self)
+    }
+
+    pub fn into_inner(self) -> LockResult<T> {
+        self.inner.into_inner()
     }
 }
 
@@ -100,7 +109,6 @@ impl<T: Default> Default for RwLockWrapped<T> {
 //     }
 // }
 
-
 fn write_smart<T>(rwlock_wrapped: &RwLockWrapped<T>) -> LockResult<RwLockWriteGuard<'_, T>> {
     let rwlock = &rwlock_wrapped.inner;
     let mut last_returned = &rwlock_wrapped.last_returned_lock_from;
@@ -112,7 +120,8 @@ fn write_smart<T>(rwlock_wrapped: &RwLockWrapped<T>) -> LockResult<RwLockWriteGu
         match rwlock.try_write() {
             Ok(guard) => {
                 let stack_caller = get_current_stracktrace();
-                *last_returned.lock().unwrap() = Some(stack_caller.expect("stacktrace should be available"));
+                *last_returned.lock().unwrap() =
+                    Some(stack_caller.expect("stacktrace should be available"));
                 return Ok(guard);
             }
             Err(err) => {
@@ -125,17 +134,24 @@ fn write_smart<T>(rwlock_wrapped: &RwLockWrapped<T>) -> LockResult<RwLockWriteGu
                         if thresholds_config::should_inspect_lock(cnt) {
                             let stack_caller = get_current_stracktrace();
                             let thread = thread::current();
-                            let thread_info = ThreadInfo { thread_id: thread.id(), name: thread.name().unwrap_or("no_thread").to_string() };
+                            let thread_info = ThreadInfo {
+                                thread_id: thread.id(),
+                                name: thread.name().unwrap_or("no_thread").to_string(),
+                            };
                             let stacktrace_created = &rwlock_wrapped.stack_created;
                             let last_lock_from = &rwlock_wrapped.last_returned_lock_from;
 
                             // dispatch to custom handle
                             // note: implementation must deal with debounce, etc.
-                            handle_blocked_writer_event(wait_since, waittime_elapsed, cnt,
-                                                        thread_info,
-                                                        stacktrace_created.clone(),
-                                                        last_lock_from.clone(),
-                                                        &stack_caller.ok());
+                            handle_blocked_writer_event(
+                                wait_since,
+                                waittime_elapsed,
+                                cnt,
+                                thread_info,
+                                stacktrace_created.clone(),
+                                last_lock_from.clone(),
+                                &stack_caller.ok(),
+                            );
                         }
 
                         thresholds_config::sleep_backoff(cnt);
@@ -146,7 +162,6 @@ fn write_smart<T>(rwlock_wrapped: &RwLockWrapped<T>) -> LockResult<RwLockWriteGu
         }
     }
 }
-
 
 fn read_smart<T>(rwlock_wrapped: &RwLockWrapped<T>) -> LockResult<RwLockReadGuard<'_, T>> {
     let rwlock = &rwlock_wrapped.inner;
@@ -159,7 +174,8 @@ fn read_smart<T>(rwlock_wrapped: &RwLockWrapped<T>) -> LockResult<RwLockReadGuar
         match rwlock.try_read() {
             Ok(guard) => {
                 let stack_caller = get_current_stracktrace();
-                *last_returned.lock().unwrap() = Some(stack_caller.expect("stacktrace should be available"));
+                *last_returned.lock().unwrap() =
+                    Some(stack_caller.expect("stacktrace should be available"));
                 return Ok(guard);
             }
             Err(err) => {
@@ -172,17 +188,24 @@ fn read_smart<T>(rwlock_wrapped: &RwLockWrapped<T>) -> LockResult<RwLockReadGuar
                         if thresholds_config::should_inspect_lock(cnt) {
                             let stack_caller = get_current_stracktrace();
                             let thread = thread::current();
-                            let thread_info = ThreadInfo { thread_id: thread.id(), name: thread.name().unwrap_or("no_thread").to_string() };
+                            let thread_info = ThreadInfo {
+                                thread_id: thread.id(),
+                                name: thread.name().unwrap_or("no_thread").to_string(),
+                            };
                             let stacktrace_created = &rwlock_wrapped.stack_created;
                             let last_lock_from = &rwlock_wrapped.last_returned_lock_from;
 
                             // dispatch to custom handle
                             // note: implementation must deal with debounce, etc.
-                            handle_blocked_reader_event(wait_since, waittime_elapsed, cnt,
-                                                        thread_info,
-                                                        stacktrace_created.clone(),
-                                                        last_lock_from.clone(),
-                                                        &stack_caller.ok());
+                            handle_blocked_reader_event(
+                                wait_since,
+                                waittime_elapsed,
+                                cnt,
+                                thread_info,
+                                stacktrace_created.clone(),
+                                last_lock_from.clone(),
+                                &stack_caller.ok(),
+                            );
                         }
 
                         thresholds_config::sleep_backoff(cnt);
@@ -196,15 +219,21 @@ fn read_smart<T>(rwlock_wrapped: &RwLockWrapped<T>) -> LockResult<RwLockReadGuar
 
 // custom handling
 // TODO discuss "&Option" vs "Option"
-fn handle_blocked_writer_event(_since: Instant, elapsed: Duration,
-                               cnt: u64,
-                               thread: ThreadInfo,
-                               stacktrace_created: &Option<Stracktrace>,
-                               last_returned_lock_from: Arc<Mutex<Option<Stracktrace>>>,
-                               stacktrace_caller: &Option<Stracktrace>) {
+fn handle_blocked_writer_event(
+    _since: Instant,
+    elapsed: Duration,
+    cnt: u64,
+    thread: ThreadInfo,
+    stacktrace_created: &Option<Stracktrace>,
+    last_returned_lock_from: Arc<Mutex<Option<Stracktrace>>>,
+    stacktrace_caller: &Option<Stracktrace>,
+) {
     let locktag = get_lock_identifier(stacktrace_created);
 
-    info!("WRITER BLOCKED on thread {} for {:?} (locktag {})", thread, elapsed, locktag);
+    info!(
+        "WRITER BLOCKED on thread {} for {:?} (locktag {})",
+        thread, elapsed, locktag
+    );
 
     match stacktrace_caller {
         None => {}
@@ -228,15 +257,21 @@ fn handle_blocked_writer_event(_since: Instant, elapsed: Duration,
     }
 }
 
-fn handle_blocked_reader_event(_since: Instant, elapsed: Duration,
-                               cnt: u64,
-                               thread: ThreadInfo,
-                               stacktrace_created: &Option<Stracktrace>,
-                               last_returned_lock_from: Arc<Mutex<Option<Stracktrace>>>,
-                               stacktrace_caller: &Option<Stracktrace>) {
+fn handle_blocked_reader_event(
+    _since: Instant,
+    elapsed: Duration,
+    cnt: u64,
+    thread: ThreadInfo,
+    stacktrace_created: &Option<Stracktrace>,
+    last_returned_lock_from: Arc<Mutex<Option<Stracktrace>>>,
+    stacktrace_caller: &Option<Stracktrace>,
+) {
     let locktag = get_lock_identifier(stacktrace_created);
 
-    info!("READER BLOCKED on thread {} for {:?} (locktag {})", thread, elapsed, locktag);
+    info!(
+        "READER BLOCKED on thread {} for {:?} (locktag {})",
+        thread, elapsed, locktag
+    );
 
     match stacktrace_caller {
         None => {}
@@ -263,7 +298,10 @@ fn handle_blocked_reader_event(_since: Instant, elapsed: Duration,
 fn log_frames(msg: &str, locktag: &str, stacktrace: &&Stracktrace) {
     debug!(" |{}>\t{}:", locktag, msg);
     for frame in &stacktrace.frames {
-        debug!(" |{}>\t  {}!{}:{}", locktag, frame.filename, frame.method, frame.line_no);
+        debug!(
+            " |{}>\t  {}!{}:{}",
+            locktag, frame.filename, frame.method, frame.line_no
+        );
     }
 }
 
@@ -271,7 +309,7 @@ fn log_frames(msg: &str, locktag: &str, stacktrace: &&Stracktrace) {
 fn get_lock_identifier(stacktrace_created: &Option<Stracktrace>) -> &str {
     match stacktrace_created {
         None => "n/a",
-        Some(stacktrace) => &stacktrace.hash.as_ref()
+        Some(stacktrace) => &stacktrace.hash.as_ref(),
     }
 }
 
@@ -282,6 +320,7 @@ fn get_current_stracktrace() -> Result<Stracktrace, BacktrackError> {
     const OMIT_FRAME_SUFFIX1: &str = "rust_debugging_locks:";
     // <rust_debugging_locks::debugging_locks::RwLockWrapped<T> as core::default::Default>::default::haed7701ba5f48aa2:97
     const OMIT_FRAME_SUFFIX2: &str = "<rust_debugging_locks:";
-    backtrack_frame(|symbol_name| symbol_name.starts_with(OMIT_FRAME_SUFFIX1) || symbol_name.starts_with(OMIT_FRAME_SUFFIX2))
+    backtrack_frame(|symbol_name| {
+        symbol_name.starts_with(OMIT_FRAME_SUFFIX1) || symbol_name.starts_with(OMIT_FRAME_SUFFIX2)
+    })
 }
-

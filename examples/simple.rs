@@ -1,21 +1,19 @@
+use env_logger::Env;
+use rust_debugging_locks::debugging_locks::RwLockWrapped;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
-use env_logger::Env;
-use rust_debugging_locks::debugging_locks::RwLockWrapped;
 
 fn main() {
     env_logger::Builder::from_env(Env::default().default_filter_or("debug")).init();
 
     reader_blocks_writer();
     writer_blocks_reader();
-
 }
 
-
 fn reader_blocks_writer() {
-    let lock : Arc<RwLockWrapped<HashMap<i32,i32>>> = deep_init();
+    let lock: Arc<RwLockWrapped<HashMap<i32, i32>>> = deep_init();
 
     let l1 = lock.clone();
     let thread = thread::spawn(move || {
@@ -42,9 +40,8 @@ fn deep2_init() -> Arc<RwLockWrapped<HashMap<i32, i32>>> {
     Arc::new(RwLockWrapped::new(HashMap::new()))
 }
 
-
 fn writer_blocks_reader() {
-    let lock : Arc<RwLockWrapped<HashMap<i32,i32>>> = Arc::new(RwLockWrapped::new(HashMap::new()));
+    let lock: Arc<RwLockWrapped<HashMap<i32, i32>>> = Arc::new(RwLockWrapped::new(HashMap::new()));
 
     let l1 = lock.clone();
     let thread = thread::spawn(move || {
@@ -62,4 +59,3 @@ fn writer_blocks_reader() {
 
     thread.join().unwrap();
 }
-
